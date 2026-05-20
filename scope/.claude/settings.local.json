@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "WebFetch(domain:wick-ui-lib.pages.dev)"
-    ]
-  }
-}
