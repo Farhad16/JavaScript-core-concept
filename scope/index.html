@@ -1,0 +1,4390 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JavaScript Scope — Deep Dive · QuestionPro Engineering</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --electric: #1b87e6;
+        --electric-hover: #54a5ec;
+        --dark: #1b3380;
+        --lead: #545e6b;
+        --gray-10: #f5f5f5;
+        --gray-20: #eeeeee;
+        --gray-25: #e8e8e8;
+        --gray-40: #d8d8d8;
+        --subtle: #9b9b9b;
+        --blue-soft: #ccf0ff;
+        --blue-focus: #8dc3f2;
+        --blue-sidebar: #eef3fb;
+        --blue-sidebar-h: #dde4f1;
+        --blue-deep: #215694;
+        --blue-switcher: #001840;
+        --green: #227700;
+        --green-soft: #dff2bf;
+        --red: #cc0000;
+        --red-soft: #ffbaba;
+        --orange: #f58300;
+        --orange-soft: #f5a300;
+        --yellow-soft: #feefb3;
+        --yellow-deep: #9f6000;
+        --bg: var(--gray-10);
+        --bg-card: #ffffff;
+        --bg-code: var(--blue-switcher);
+        --border: var(--gray-40);
+        --border-soft: var(--gray-25);
+        --shadow-sm:
+          0 1px 2px rgba(27, 51, 128, 0.05), 0 2px 7px rgba(27, 51, 128, 0.04);
+        --shadow-md:
+          0 2px 5px rgba(27, 51, 128, 0.08), 0 8px 22px rgba(27, 51, 128, 0.07);
+        --text: #1a1a2e;
+        --text-dim: var(--lead);
+        --text-muted: var(--subtle);
+        --accent: var(--electric);
+        --accent-bg: var(--blue-sidebar);
+        --accent-line: #c2d5ee;
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        height: 100vh;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+      #progress {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--electric), var(--dark));
+        transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 300;
+      }
+      #header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 54px;
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 28px;
+        z-index: 200;
+      }
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .logo img {
+        height: 26px;
+        display: block;
+      }
+      .logo-sep {
+        color: var(--gray-40);
+        font-size: 20px;
+        font-weight: 200;
+      }
+      .logo-sub {
+        font-size: 13px;
+        color: var(--text-muted);
+        font-weight: 500;
+      }
+      #slide-num {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        color: var(--text-muted);
+        background: var(--gray-10);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 3px 10px;
+      }
+      #footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 54px;
+        background: #fff;
+        border-top: 1px solid var(--border);
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        padding: 0 28px;
+        z-index: 200;
+      }
+      .btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 16px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--gray-10);
+        color: var(--text-dim);
+        font-size: 13px;
+        font-family: "Inter", sans-serif;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.17s;
+      }
+      .btn:hover:not(:disabled) {
+        border-color: var(--electric);
+        color: var(--electric);
+        background: var(--blue-sidebar);
+      }
+      .btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+      .btn.primary {
+        background: var(--electric);
+        border-color: var(--electric);
+        color: #fff;
+      }
+      .btn.primary:hover {
+        background: var(--blue-deep);
+        border-color: var(--blue-deep);
+        color: #fff;
+      }
+      .dots {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+      }
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 5px;
+        background: var(--gray-40);
+        transition: all 0.25s;
+        cursor: pointer;
+      }
+      .dot.on {
+        width: 26px;
+        background: var(--electric);
+      }
+      .dot:not(.on):hover {
+        background: var(--blue-focus);
+        width: 14px;
+      }
+      .kbd-hint {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11.5px;
+        color: var(--text-muted);
+      }
+      .key {
+        display: inline-block;
+        padding: 2px 6px;
+        background: var(--gray-20);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 10.5px;
+        color: var(--text-dim);
+      }
+      .slides-wrap {
+        position: fixed;
+        top: 54px;
+        bottom: 54px;
+        left: 0;
+        right: 0;
+        overflow-y: auto;
+        padding: 32px 28px;
+      }
+      .slides-inner {
+        max-width: 1100px;
+        margin: 0 auto;
+        width: 100%;
+      }
+      .slide {
+        display: none;
+        animation: fadeIn 0.25s ease;
+      }
+      .slide.active {
+        display: block;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .slide-header {
+        margin-bottom: 24px;
+      }
+      .slide-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--blue-sidebar);
+        border: 1px solid var(--accent-line);
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--electric);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 10px;
+      }
+      .slide-title {
+        font-size: 26px;
+        font-weight: 800;
+        color: var(--dark);
+        line-height: 1.25;
+        letter-spacing: -0.4px;
+      }
+      .slide-sub {
+        font-size: 14px;
+        color: var(--text-dim);
+        margin-top: 6px;
+        font-weight: 400;
+      }
+      .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18px 20px;
+        box-shadow: var(--shadow-sm);
+      }
+      .card-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-muted);
+        margin-bottom: 10px;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 14px;
+      }
+      .code {
+        background: var(--bg-code);
+        border-radius: 8px;
+        padding: 14px 18px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12.5px;
+        line-height: 1.75;
+        position: relative;
+        overflow: auto;
+        color: #c8d8f0;
+        white-space: pre;
+        tab-size: 2;
+      }
+      .code .lang {
+        position: absolute;
+        top: 9px;
+        right: 12px;
+        font-size: 9px;
+        color: #3a4870;
+        white-space: normal;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+      }
+      .kw {
+        color: #c792ea;
+      }
+      .fn {
+        color: #82aaff;
+      }
+      .vr {
+        color: #89ddff;
+      }
+      .str {
+        color: #c3e88d;
+      }
+      .num {
+        color: #f78c6c;
+      }
+      .cm {
+        color: #546e7a;
+        font-style: italic;
+      }
+      .op {
+        color: #89ddff;
+      }
+      .hl {
+        background: rgba(27, 135, 230, 0.18);
+        border-left: 2px solid var(--electric);
+        padding-left: 4px;
+        display: block;
+      }
+      .blist {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .blist li {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        font-size: 13.5px;
+        line-height: 1.55;
+      }
+      .blist li::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--electric);
+        margin-top: 5px;
+        flex-shrink: 0;
+      }
+      .callout {
+        background: var(--blue-sidebar);
+        border-left: 3px solid var(--electric);
+        border-radius: 0 8px 8px 0;
+        padding: 12px 16px;
+        font-size: 13.5px;
+        line-height: 1.6;
+        color: var(--dark);
+      }
+      .callout strong {
+        color: var(--electric);
+      }
+      .scope-box {
+        border-radius: 10px;
+        padding: 12px 14px;
+        position: relative;
+        margin-bottom: 8px;
+      }
+      .scope-box.s-global {
+        background: rgba(27, 135, 230, 0.08);
+        border: 2px solid var(--electric);
+      }
+      .scope-box.s-outer {
+        background: rgba(245, 131, 0, 0.08);
+        border: 2px solid var(--orange);
+      }
+      .scope-box.s-inner {
+        background: rgba(150, 70, 200, 0.08);
+        border: 2px solid #9646c8;
+      }
+      .scope-lbl {
+        position: absolute;
+        top: -9px;
+        left: 10px;
+        font-size: 9.5px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        padding: 1px 8px;
+        border-radius: 20px;
+      }
+      .scope-lbl.sl-g {
+        background: var(--electric);
+        color: #fff;
+        border: none;
+      }
+      .scope-lbl.sl-o {
+        background: var(--orange);
+        color: #fff;
+        border: none;
+      }
+      .scope-lbl.sl-i {
+        background: #9646c8;
+        color: #fff;
+        border: none;
+      }
+      .pipe-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .pipe-box {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 9px 10px;
+        text-align: center;
+        flex: 1;
+        box-shadow: var(--shadow-sm);
+      }
+      .pipe-box .pb-icon {
+        font-size: 16px;
+        margin-bottom: 2px;
+      }
+      .pipe-box .pb-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .pipe-box .pb-sub {
+        font-size: 9.5px;
+        color: var(--text-muted);
+        margin-top: 1px;
+      }
+      .pipe-box.p-src {
+        background: var(--gray-10);
+      }
+      .pipe-box.p-parse {
+        background: var(--blue-sidebar);
+        border-color: var(--accent-line);
+      }
+      .pipe-box.p-interp {
+        background: #e4f0fd;
+        border-color: var(--blue-focus);
+      }
+      .pipe-box.p-opt {
+        background: var(--green-soft);
+        border-color: #b6e8a0;
+      }
+      .pipe-box.p-hot {
+        background: var(--yellow-soft);
+        border-color: #f5d07a;
+      }
+      .pipe-arr {
+        color: var(--gray-40);
+        font-size: 14px;
+        padding: 0 3px;
+        flex-shrink: 0;
+      }
+      .tok-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+      .tok {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      .tok-val {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 5px 10px;
+        border-radius: 6px;
+      }
+      .tok-type {
+        font-size: 9.5px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--text-muted);
+      }
+      .tok-kw .tok-val {
+        background: rgba(27, 51, 128, 0.1);
+        color: #1b3380;
+        border: 1px solid rgba(27, 51, 128, 0.3);
+      }
+      .tok-id .tok-val {
+        background: rgba(27, 135, 230, 0.1);
+        color: #1565a8;
+        border: 1px solid rgba(27, 135, 230, 0.3);
+      }
+      .tok-op .tok-val {
+        background: rgba(180, 100, 0, 0.1);
+        color: #9a5500;
+        border: 1px solid rgba(180, 100, 0, 0.3);
+      }
+      .tok-num .tok-val {
+        background: rgba(107, 48, 168, 0.1);
+        color: #6b30a8;
+        border: 1px solid rgba(107, 48, 168, 0.3);
+      }
+      .tok-punc .tok-val {
+        background: rgba(200, 216, 240, 0.08);
+        color: #c8d8f0;
+        border: 1px solid rgba(200, 216, 240, 0.2);
+      }
+      .ast-tree {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        background: var(--bg-code);
+        border-radius: 8px;
+        padding: 14px 18px;
+        color: #c8d8f0;
+        line-height: 1.8;
+      }
+      .ast-node {
+        color: #82aaff;
+        font-weight: 600;
+      }
+      .agenda {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: repeat(6, auto);
+        grid-auto-flow: column;
+        gap: 9px;
+      }
+      .ag-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 14px;
+        box-shadow: var(--shadow-sm);
+      }
+      .ag-num {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: var(--dark);
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: #fff;
+        flex-shrink: 0;
+      }
+      .ag-label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .ag-sub {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 1px;
+      }
+      .badge {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        padding: 2px 8px;
+        border-radius: 20px;
+      }
+      .badge-blue {
+        background: var(--blue-sidebar);
+        color: var(--electric);
+        border: 1px solid var(--accent-line);
+      }
+      .badge-green {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+      .badge-red {
+        background: var(--red-soft);
+        color: var(--red);
+      }
+      .badge-yellow {
+        background: var(--yellow-soft);
+        color: var(--yellow-deep);
+      }
+      .tbl {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .tbl th {
+        background: var(--blue-sidebar);
+        color: var(--dark);
+        font-weight: 700;
+        padding: 8px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--accent-line);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .tbl td {
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--border-soft);
+        vertical-align: top;
+      }
+      .tbl tr:last-child td {
+        border-bottom: none;
+      }
+      .tbl tr:hover td {
+        background: var(--blue-sidebar);
+      }
+      /* ─── Interactive EC Demo ─── */
+      .ecd-wrap {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        flex: 1;
+        min-height: 0;
+      }
+      .ecd-left {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .ecd-right {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 0;
+      }
+      .ecd-code {
+        background: var(--bg-code);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .ecd-code-hd {
+        background: rgba(255, 255, 255, 0.04);
+        padding: 7px 14px;
+        font-size: 9.5px;
+        color: #3a4870;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        flex-shrink: 0;
+      }
+      .ecd-code pre {
+        padding: 10px 0;
+        flex: 1;
+        overflow: auto;
+      }
+      .ecd-line {
+        display: flex;
+        padding: 1px 14px;
+        transition: background 0.22s;
+      }
+      .ecd-line .ln {
+        width: 22px;
+        color: #3a4870;
+        flex-shrink: 0;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11.5px;
+        user-select: none;
+      }
+      .ecd-line .lc {
+        color: #c8d8f0;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        line-height: 1.75;
+      }
+      .ecd-line.hi {
+        background: rgba(27, 135, 230, 0.2);
+        border-left: 2px solid var(--electric);
+      }
+      .ecd-line.hi .lc {
+        color: #fff;
+      }
+      .ecd-stack-wrap {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 11px 12px;
+        box-shadow: var(--shadow-sm);
+        flex-shrink: 0;
+      }
+      .ecd-sec-title {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        color: var(--text-muted);
+        margin-bottom: 7px;
+      }
+      .ecd-frames {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-height: 50px;
+        justify-content: flex-end;
+      }
+      .ecd-frame {
+        padding: 7px 12px;
+        border-radius: 6px;
+        text-align: center;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .ecd-frame.fr-global {
+        background: var(--blue-sidebar);
+        border: 1px solid var(--accent-line);
+        color: var(--dark);
+      }
+      .ecd-frame.fr-fn {
+        background: #fff3e0;
+        border: 1px solid #ffb74d;
+        color: #7a4000;
+      }
+      .ecd-frame.fr-inner {
+        background: #f3e5f5;
+        border: 1px solid #ce93d8;
+        color: #4a148c;
+      }
+      @keyframes frameIn {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .ecd-frame-new {
+        animation: frameIn 0.28s ease;
+      }
+      .ecd-env-wrap {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 11px 12px;
+        box-shadow: var(--shadow-sm);
+        flex: 1;
+      }
+      .ecd-env-row {
+        display: flex;
+        gap: 10px;
+        padding: 3px 0;
+        border-bottom: 1px solid var(--border-soft);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        align-items: baseline;
+      }
+      .ecd-env-row:last-child {
+        border-bottom: none;
+      }
+      .ecd-env-key {
+        color: var(--electric);
+        min-width: 70px;
+      }
+      .ecd-env-val {
+        color: var(--green);
+      }
+      .ecd-env-sep {
+        color: var(--text-muted);
+        font-size: 10px;
+      }
+      .ecd-env-row.scope-hdr {
+        color: var(--text-muted);
+        font-size: 9.5px;
+        font-style: italic;
+        font-weight: 600;
+        border-bottom: 1px dashed var(--border);
+        padding: 4px 0 2px;
+        margin-top: 2px;
+      }
+      @keyframes envIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      .ecd-env-new {
+        animation: envIn 0.3s ease;
+      }
+      .ecd-phase {
+        padding: 8px 14px;
+        border-radius: 7px;
+        font-size: 13px;
+        line-height: 1.45;
+        flex-shrink: 0;
+      }
+      .ecd-phase.idle {
+        background: var(--gray-20);
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+      }
+      .ecd-phase.parse {
+        background: var(--blue-sidebar);
+        color: var(--dark);
+        border: 1px solid var(--accent-line);
+      }
+      .ecd-phase.memory {
+        background: var(--yellow-soft);
+        color: var(--yellow-deep);
+        border: 1px solid #f5d07a;
+      }
+      .ecd-phase.exec {
+        background: var(--green-soft);
+        color: var(--green);
+        border: 1px solid #b6e8a0;
+      }
+      .ecd-phase.done {
+        background: var(--green-soft);
+        color: var(--green);
+        border: 1px solid #b6e8a0;
+      }
+      .ecd-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 10px;
+        flex-shrink: 0;
+      }
+      .ecd-step-lbl {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11.5px;
+        color: var(--text-muted);
+      }
+      .ecd-btn {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 6px 16px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--gray-10);
+        color: var(--text-dim);
+        font-size: 13px;
+        font-family: "Inter", sans-serif;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.17s;
+      }
+      .ecd-btn:hover:not(:disabled) {
+        border-color: var(--electric);
+        color: var(--electric);
+        background: var(--blue-sidebar);
+      }
+      .ecd-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+      .ecd-btn.ecd-primary {
+        background: var(--electric);
+        border-color: var(--electric);
+        color: #fff;
+      }
+      .ecd-btn.ecd-primary:hover {
+        background: var(--blue-deep);
+        border-color: var(--blue-deep);
+        color: #fff;
+      }
+      .phase-box {
+        border-radius: 10px;
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+      }
+      .phase-title {
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: var(--text);
+      }
+      .rw-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: var(--shadow-sm);
+      }
+      .rw-card .code {
+        font-size: 11px;
+        padding: 10px 14px;
+        line-height: 1.65;
+      }
+      .rw-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--electric);
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        margin-bottom: 10px;
+      }
+      .rw-output {
+        margin-top: 10px;
+        background: var(--gray-20);
+        border: 1px solid var(--border-soft);
+        border-radius: 7px;
+        padding: 8px 12px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11.5px;
+      }
+      .rw-output .out-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--subtle);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+      .rw-output .out-line {
+        color: var(--electric);
+        line-height: 1.65;
+      }
+      .rw-explain {
+        margin-top: 8px;
+        font-size: 11.5px;
+        color: var(--lead);
+        line-height: 1.5;
+        border-left: 2px solid var(--electric);
+        padding-left: 8px;
+      }
+      .trap-box {
+        background: rgba(204, 0, 0, 0.04);
+        border: 1px solid rgba(204, 0, 0, 0.2);
+        border-radius: 10px;
+        padding: 14px 16px;
+      }
+      .fix-box {
+        background: rgba(34, 119, 0, 0.04);
+        border: 1px solid rgba(34, 119, 0, 0.2);
+        border-radius: 10px;
+        padding: 14px 16px;
+      }
+      .chain-step {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        margin-bottom: 6px;
+      }
+      .chain-box {
+        padding: 5px 12px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+      }
+      .ch-inner {
+        background: rgba(107, 48, 168, 0.1);
+        color: #6b30a8;
+        border: 1px solid rgba(107, 48, 168, 0.3);
+      }
+      .ch-outer {
+        background: rgba(245, 131, 0, 0.1);
+        color: #c05a00;
+        border: 1px solid rgba(245, 131, 0, 0.35);
+      }
+      .ch-global {
+        background: rgba(27, 51, 128, 0.1);
+        color: #1b3380;
+        border: 1px solid rgba(27, 51, 128, 0.3);
+      }
+      .chain-arr {
+        color: var(--text-dim);
+        font-size: 13px;
+      }
+      .title-slide {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        align-items: center;
+        min-height: 420px;
+      }
+      .title-left {
+        padding-right: 16px;
+      }
+      .tc-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--blue-sidebar);
+        border: 1px solid var(--accent-line);
+        border-radius: 20px;
+        padding: 4px 14px;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--electric);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 20px;
+        width: fit-content;
+      }
+      .tc-h1 {
+        font-size: clamp(32px, 4vw, 48px);
+        font-weight: 900;
+        line-height: 1.08;
+        letter-spacing: -1.5px;
+        color: var(--dark);
+        margin-bottom: 16px;
+      }
+      .tc-h1 span {
+        color: var(--electric);
+      }
+      .tc-sub {
+        font-size: 14px;
+        color: var(--text-dim);
+        line-height: 1.6;
+        max-width: 420px;
+      }
+      .tc-footer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 28px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+      }
+      .tc-pill {
+        background: var(--gray-10);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+      }
+      .title-right {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .tc-concept {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px 18px;
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        box-shadow: var(--shadow-sm);
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+      }
+      .tc-concept:hover {
+        border-color: var(--accent-line);
+        box-shadow: var(--shadow-md);
+      }
+      .tc-icon {
+        font-size: 22px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .tc-concept-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--dark);
+        margin-bottom: 3px;
+      }
+      .tc-concept-sub {
+        font-size: 12px;
+        color: var(--text-muted);
+        line-height: 1.45;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="progress"></div>
+    <header id="header">
+      <div class="logo" onclick="navigateTo(1)" style="cursor: pointer">
+        <img
+          src="https://cdn.questionpro.com/userimages/site_media/questionpro-logo-nw.svg"
+          alt="QuestionPro"
+        />
+        <span class="logo-sep">|</span>
+        <span class="logo-sub">Engineering Session</span>
+      </div>
+      <span id="slide-num">01 / 18</span>
+    </header>
+    <main class="slides-wrap">
+      <div class="slides-inner">
+        <!-- SLIDE 01 TITLE -->
+        <section class="slide" id="slide-1">
+          <div class="title-slide">
+            <div class="title-left">
+              <div class="tc-tag">&#9679; Engineering Deep Dive</div>
+              <div class="tc-h1">
+                JavaScript<br /><span>Scope</span>, Execution<br />Context &amp;
+                <span>Closures</span>
+              </div>
+              <div class="tc-sub">
+                How the engine decides what your code can see — and why it
+                matters for every pattern you write.
+              </div>
+              <div class="tc-footer">
+                <span class="tc-pill">&#128220; 18 slides</span>
+                <span class="tc-pill">&#128336; ~45 min</span>
+                <span class="tc-pill">QuestionPro Engineering</span>
+              </div>
+            </div>
+            <div class="title-right">
+              <div class="tc-concept">
+                <div class="tc-icon">&#127991;&#65039;</div>
+                <div>
+                  <div class="tc-concept-title">Identifiers &amp; Scope</div>
+                  <div class="tc-concept-sub">
+                    Names, variables, and where they live — set at parse time,
+                    not runtime
+                  </div>
+                </div>
+              </div>
+              <div class="tc-concept">
+                <div class="tc-icon">&#9881;&#65039;</div>
+                <div>
+                  <div class="tc-concept-title">Execution Context</div>
+                  <div class="tc-concept-sub">
+                    How JS sets up memory before running a single line of code
+                  </div>
+                </div>
+              </div>
+              <div class="tc-concept">
+                <div class="tc-icon">&#128274;</div>
+                <div>
+                  <div class="tc-concept-title">Closures</div>
+                  <div class="tc-concept-sub">
+                    Functions that remember their environment — the most
+                    powerful pattern in JS
+                  </div>
+                </div>
+              </div>
+              <div class="tc-concept">
+                <div class="tc-icon">&#9889;</div>
+                <div>
+                  <div class="tc-concept-title">Real-world Usage</div>
+                  <div class="tc-concept-sub">
+                    React hooks, async traps, debounce, module patterns
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 02 AGENDA -->
+        <section class="slide" id="slide-2">
+          <div class="slide-header">
+            <div class="slide-tag">Agenda</div>
+            <div class="slide-title">What we'll cover</div>
+          </div>
+          <div class="agenda">
+            <div class="ag-item">
+              <div class="ag-num">01</div>
+              <div>
+                <div class="ag-label">Identifier &amp; Scope Definition</div>
+                <div class="ag-sub">What gets named?</div>
+              </div>
+            </div>
+            <div class="ag-item">
+              <div class="ag-num">02</div>
+              <div>
+                <div class="ag-label">JS Engine Overview</div>
+                <div class="ag-sub">V8 pipeline &amp; engines</div>
+              </div>
+            </div>
+            <div class="ag-item">
+              <div class="ag-num">03</div>
+              <div>
+                <div class="ag-label">Parsing, Tokens &amp; AST</div>
+                <div class="ag-sub">How code is read</div>
+              </div>
+            </div>
+            <div class="ag-item">
+              <div class="ag-num">04</div>
+              <div>
+                <div class="ag-label">How Scope Is Created</div>
+                <div class="ag-sub">During parsing, before run</div>
+              </div>
+            </div>
+            <div class="ag-item">
+              <div class="ag-num">05</div>
+              <div>
+                <div class="ag-label">Lexical Scope</div>
+                <div class="ag-sub">Write-time rules</div>
+              </div>
+            </div>
+            <div class="ag-item">
+              <div class="ag-num">06</div>
+              <div>
+                <div class="ag-label">Scope Types</div>
+                <div class="ag-sub">Global · Function · Block · Module</div>
+              </div>
+            </div>
+            <div class="ag-item">
+              <div class="ag-num">07</div>
+              <div>
+                <div class="ag-label">Scope Chain &amp; Shadowing</div>
+                <div class="ag-sub">Lookup &amp; override</div>
+              </div>
+            </div>
+            <div class="ag-item">
+              <div class="ag-num">08</div>
+              <div>
+                <div class="ag-label">Execution Context</div>
+                <div class="ag-sub">Interactive demo</div>
+              </div>
+            </div>
+            <div class="ag-item">
+              <div class="ag-num">09</div>
+              <div>
+                <div class="ag-label">Hoisting</div>
+                <div class="ag-sub">var vs let/const</div>
+              </div>
+            </div>
+            <div class="ag-item">
+              <div class="ag-num">10</div>
+              <div>
+                <div class="ag-label">Temporal Dead Zone</div>
+                <div class="ag-sub">let/const before init</div>
+              </div>
+            </div>
+            <div class="ag-item">
+              <div class="ag-num">11</div>
+              <div>
+                <div class="ag-label">Closures</div>
+                <div class="ag-sub">Scope that persists</div>
+              </div>
+            </div>
+            <div class="ag-item">
+              <div class="ag-num">12</div>
+              <div>
+                <div class="ag-label">Async, Loop Traps &amp; Real-world</div>
+                <div class="ag-sub">Pitfalls &amp; patterns</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 03 IDENTIFIER -->
+        <section class="slide" id="slide-3">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 01</div>
+            <div class="slide-title">Identifier</div>
+            <div class="slide-sub">
+              Everything that has a name in your program
+            </div>
+          </div>
+          <div class="grid-2" style="align-items: start">
+            <div>
+              <div class="callout" style="margin-bottom: 14px">
+                <strong>Scope</strong> = the rules that determine which
+                identifiers are <em>visible and accessible</em> at any given
+                point in your code.
+              </div>
+              <div class="card">
+                <div class="card-title">What is an identifier?</div>
+                <ul class="blist">
+                  <li>
+                    A name that refers to something — variable, function, class,
+                    parameter, label
+                  </li>
+                  <li>Every identifier lives in exactly one scope</li>
+                  <li>
+                    The engine resolves identifiers at runtime by walking the
+                    scope chain
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="code" data-code="identifier" data-lang="js"></div>
+          </div>
+        </section>
+
+        <!-- SLIDE 04 JS ENGINE OVERVIEW -->
+        <section class="slide" id="slide-4">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 02</div>
+            <div class="slide-title">JavaScript Engine Overview</div>
+            <div class="slide-sub">
+              How JS engines turn source text into running code
+            </div>
+          </div>
+          <div class="grid-2" style="align-items: start; gap: 16px">
+            <div>
+              <div class="card" style="margin-bottom: 12px">
+                <div class="card-title">Major engines</div>
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th>Engine</th>
+                      <th>Used by</th>
+                      <th>Key tech</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>V8</strong></td>
+                      <td>Chrome, Node.js, Deno</td>
+                      <td>Ignition (interpreter) + TurboFan JIT (compiler)</td>
+                    </tr>
+                    <tr>
+                      <td><strong>SpiderMonkey</strong></td>
+                      <td>Firefox</td>
+                      <td>IonMonkey JIT (compiles hot paths to machine code)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">V8 pipeline — source to machine code</div>
+              <div class="pipe-row">
+                <div class="pipe-box p-src">
+                  <div class="pb-icon">&#128196;</div>
+                  <div class="pb-title">Source</div>
+                  <div class="pb-sub">JS text</div>
+                </div>
+                <div class="pipe-arr">&#8594;</div>
+                <div class="pipe-box p-parse">
+                  <div class="pb-icon">&#128269;</div>
+                  <div class="pb-title">Parser</div>
+                  <div class="pb-sub">tokens → AST</div>
+                </div>
+                <div class="pipe-arr">&#8594;</div>
+                <div class="pipe-box p-interp">
+                  <div class="pb-icon">&#9883;&#65039;</div>
+                  <div class="pb-title">Ignition</div>
+                  <div class="pb-sub">bytecode</div>
+                </div>
+                <div class="pipe-arr">&#8594;</div>
+                <div class="pipe-box p-opt">
+                  <div class="pb-icon">&#128200;</div>
+                  <div class="pb-title">Profiler</div>
+                  <div class="pb-sub">hot paths</div>
+                </div>
+                <div class="pipe-arr">&#8594;</div>
+                <div class="pipe-box p-hot">
+                  <div class="pb-icon">&#9889;</div>
+                  <div class="pb-title">TurboFan</div>
+                  <div class="pb-sub">JIT machine code</div>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 10px">
+                <strong>Key insight:</strong> Scope is resolved during the
+                <strong>Parser</strong> phase — long before Ignition runs a
+                single instruction.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 05 PARSING TOKENS AST -->
+        <section class="slide" id="slide-5">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 03</div>
+            <div class="slide-title">Parsing, Tokens &amp; AST</div>
+            <div class="slide-sub">
+              Before any code runs, the engine reads every character and builds
+              a structured map of your program
+            </div>
+          </div>
+
+          <!-- Pipeline row -->
+          <div
+            style="
+              display: grid;
+              grid-template-columns: 1fr 28px 1fr 28px 1fr;
+              align-items: start;
+              gap: 0;
+              margin-bottom: 14px;
+            "
+          >
+            <!-- Step 1 -->
+            <div class="card" style="height: 100%">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-bottom: 10px;
+                "
+              >
+                <div
+                  style="
+                    width: 26px;
+                    height: 26px;
+                    border-radius: 50%;
+                    background: var(--electric);
+                    color: #fff;
+                    font-weight: 700;
+                    font-size: 13px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                  "
+                >
+                  1
+                </div>
+                <div
+                  style="
+                    font-weight: 700;
+                    color: var(--dark);
+                    font-size: 13.5px;
+                  "
+                >
+                  Source Code
+                </div>
+              </div>
+              <div class="code" style="font-size: 12.5px; margin-bottom: 10px; white-space: pre;" data-lang="js"><span class="kw">const</span> <span class="vr">x</span> <span class="op">=</span> <span class="num">10</span><span class="op">;</span>
+<span class="kw">function</span> <span class="fn">greet</span>(<span class="vr">name</span>) {
+  <span class="kw">let</span> <span class="vr">msg</span> <span class="op">=</span> <span class="str">"hi"</span>
+  <span class="kw">return</span> <span class="vr">msg</span>
+}</div>
+              <p style="font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.6;">
+                Raw text — the engine doesn't know keywords from names yet.
+              </p>
+            </div>
+            <!-- Arrow -->
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding-top: 40px;
+              "
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M5 12h14M14 7l5 5-5 5"
+                  stroke="var(--electric)"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <!-- Step 2 -->
+            <div class="card" style="height: 100%">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-bottom: 12px;
+                "
+              >
+                <div
+                  style="
+                    width: 26px;
+                    height: 26px;
+                    border-radius: 50%;
+                    background: var(--orange);
+                    color: #fff;
+                    font-weight: 700;
+                    font-size: 13px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                  "
+                >
+                  2
+                </div>
+                <div
+                  style="
+                    font-weight: 700;
+                    color: var(--dark);
+                    font-size: 13.5px;
+                  "
+                >
+                  Tokenisation
+                </div>
+              </div>
+              <!-- Annotated source line -->
+              <div
+                style="
+                  background: #f8f9fc;
+                  border: 1px solid #dde3ef;
+                  border-radius: 8px;
+                  padding: 10px 12px;
+                  margin-bottom: 12px;
+                  font-family: &quot;JetBrains Mono&quot;, monospace;
+                "
+              >
+                <div
+                  style="
+                    display: flex;
+                    align-items: flex-end;
+                    gap: 2px;
+                    flex-wrap: wrap;
+                    justify-content: center;
+                  "
+                >
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                    "
+                  >
+                    <div
+                      style="
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #1b3380;
+                        background: rgba(27, 51, 128, 0.1);
+                        border-radius: 4px;
+                        padding: 2px 6px;
+                        letter-spacing: 0.3px;
+                      "
+                    >
+                      KEYWORD
+                    </div>
+                    <div
+                      style="
+                        font-size: 15px;
+                        font-weight: 700;
+                        color: #1b3380;
+                        background: rgba(27, 51, 128, 0.08);
+                        border: 1.5px solid rgba(27, 51, 128, 0.25);
+                        border-radius: 6px;
+                        padding: 3px 8px;
+                      "
+                    >
+                      const
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      font-size: 15px;
+                      color: #ccc;
+                      padding: 0 2px;
+                      padding-bottom: 6px;
+                    "
+                  >
+                    ·
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                    "
+                  >
+                    <div
+                      style="
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #1565a8;
+                        background: rgba(21, 101, 168, 0.1);
+                        border-radius: 4px;
+                        padding: 2px 6px;
+                        letter-spacing: 0.3px;
+                      "
+                    >
+                      IDENTIFIER
+                    </div>
+                    <div
+                      style="
+                        font-size: 15px;
+                        font-weight: 700;
+                        color: #1565a8;
+                        background: rgba(21, 101, 168, 0.08);
+                        border: 1.5px solid rgba(21, 101, 168, 0.25);
+                        border-radius: 6px;
+                        padding: 3px 10px;
+                      "
+                    >
+                      x
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      font-size: 15px;
+                      color: #ccc;
+                      padding: 0 2px;
+                      padding-bottom: 6px;
+                    "
+                  >
+                    ·
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                    "
+                  >
+                    <div
+                      style="
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #9a5500;
+                        background: rgba(154, 85, 0, 0.1);
+                        border-radius: 4px;
+                        padding: 2px 6px;
+                        letter-spacing: 0.3px;
+                      "
+                    >
+                      OPERATOR
+                    </div>
+                    <div
+                      style="
+                        font-size: 15px;
+                        font-weight: 700;
+                        color: #9a5500;
+                        background: rgba(154, 85, 0, 0.08);
+                        border: 1.5px solid rgba(154, 85, 0, 0.25);
+                        border-radius: 6px;
+                        padding: 3px 10px;
+                      "
+                    >
+                      =
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      font-size: 15px;
+                      color: #ccc;
+                      padding: 0 2px;
+                      padding-bottom: 6px;
+                    "
+                  >
+                    ·
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                    "
+                  >
+                    <div
+                      style="
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #6b30a8;
+                        background: rgba(107, 48, 168, 0.1);
+                        border-radius: 4px;
+                        padding: 2px 6px;
+                        letter-spacing: 0.3px;
+                      "
+                    >
+                      NUMBER
+                    </div>
+                    <div
+                      style="
+                        font-size: 15px;
+                        font-weight: 700;
+                        color: #6b30a8;
+                        background: rgba(107, 48, 168, 0.08);
+                        border: 1.5px solid rgba(107, 48, 168, 0.25);
+                        border-radius: 6px;
+                        padding: 3px 10px;
+                      "
+                    >
+                      10
+                    </div>
+                  </div>
+                  <div
+                    style="
+                      font-size: 15px;
+                      color: #ccc;
+                      padding: 0 2px;
+                      padding-bottom: 6px;
+                    "
+                  >
+                    ·
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                      gap: 4px;
+                    "
+                  >
+                    <div
+                      style="
+                        font-size: 9px;
+                        font-weight: 700;
+                        color: #555;
+                        background: rgba(80, 80, 80, 0.08);
+                        border-radius: 4px;
+                        padding: 2px 6px;
+                        letter-spacing: 0.3px;
+                      "
+                    >
+                      PUNCTUATOR
+                    </div>
+                    <div
+                      style="
+                        font-size: 15px;
+                        font-weight: 700;
+                        color: #555;
+                        background: rgba(80, 80, 80, 0.06);
+                        border: 1.5px solid rgba(80, 80, 80, 0.2);
+                        border-radius: 6px;
+                        padding: 3px 10px;
+                      "
+                    >
+                      ;
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- Legend row -->
+              <div
+                style="
+                  display: flex;
+                  gap: 6px;
+                  flex-wrap: wrap;
+                  margin-bottom: 10px;
+                "
+              >
+                <div
+                  style="
+                    font-size: 10.5px;
+                    color: var(--text-dim);
+                    background: #f0f2f8;
+                    border-radius: 5px;
+                    padding: 3px 8px;
+                  "
+                >
+                  ✓ whitespace ignored
+                </div>
+                <div
+                  style="
+                    font-size: 10.5px;
+                    color: var(--text-dim);
+                    background: #f0f2f8;
+                    border-radius: 5px;
+                    padding: 3px 8px;
+                  "
+                >
+                  ✓ comments stripped
+                </div>
+                <div
+                  style="
+                    font-size: 10.5px;
+                    color: var(--text-dim);
+                    background: #f0f2f8;
+                    border-radius: 5px;
+                    padding: 3px 8px;
+                  "
+                >
+                  ✓ each token has type + value
+                </div>
+              </div>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin: 0; line-height: 1.6;">
+                Each character group gets a type — keyword, identifier, operator, number.
+              </p>
+            </div>
+            <!-- Arrow -->
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding-top: 40px;
+              "
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M5 12h14M14 7l5 5-5 5"
+                  stroke="var(--electric)"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <!-- Step 3 -->
+            <div class="card" style="height: 100%">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-bottom: 12px;
+                "
+              >
+                <div
+                  style="
+                    width: 26px;
+                    height: 26px;
+                    border-radius: 50%;
+                    background: #9646c8;
+                    color: #fff;
+                    font-weight: 700;
+                    font-size: 13px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                  "
+                >
+                  3
+                </div>
+                <div
+                  style="
+                    font-weight: 700;
+                    color: var(--dark);
+                    font-size: 13.5px;
+                  "
+                >
+                  Parser → AST
+                </div>
+              </div>
+              <!-- Visual AST tree -->
+              <div
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  gap: 0;
+                  margin-bottom: 12px;
+                  font-family: &quot;JetBrains Mono&quot;, monospace;
+                "
+              >
+                <!-- Program node -->
+                <div
+                  style="
+                    background: #1b3380;
+                    color: #fff;
+                    border-radius: 8px;
+                    padding: 5px 16px;
+                    font-size: 10px;
+                    font-weight: 600;
+                    letter-spacing: 0.5px;
+                    opacity: 0.7;
+                  "
+                >
+                  Program
+                </div>
+                <div
+                  style="width: 2px; height: 12px; background: #b0b8d0"
+                ></div>
+                <!-- VariableDeclaration: const x = 10; -->
+                <div
+                  style="
+                    background: rgba(27, 51, 128, 0.07);
+                    border: 1.5px solid #1b3380;
+                    border-radius: 8px;
+                    padding: 5px 14px;
+                    text-align: center;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9.5px;
+                      color: #6b7a99;
+                      margin-bottom: 3px;
+                      font-weight: 600;
+                      letter-spacing: 0.4px;
+                    "
+                  >
+                    VariableDeclaration
+                  </div>
+                  <div style="font-size: 13px">
+                    <span style="color: #c792ea; font-weight: 700">const</span>
+                    <span style="color: #1b3380">x</span>
+                    <span style="color: #9a5500">=</span>
+                    <span style="color: #6b30a8">10</span
+                    ><span style="color: #555">;</span>
+                  </div>
+                </div>
+                <div
+                  style="width: 2px; height: 12px; background: #b0b8d0"
+                ></div>
+                <!-- VariableDeclarator: x = 10 -->
+                <div
+                  style="
+                    background: rgba(27, 135, 230, 0.07);
+                    border: 1.5px solid rgba(27, 135, 230, 0.4);
+                    border-radius: 8px;
+                    padding: 5px 14px;
+                    text-align: center;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 9.5px;
+                      color: #6b7a99;
+                      margin-bottom: 3px;
+                      font-weight: 600;
+                      letter-spacing: 0.4px;
+                    "
+                  >
+                    VariableDeclarator
+                  </div>
+                  <div style="font-size: 13px">
+                    <span style="color: #1b3380">x</span>
+                    <span style="color: #9a5500">=</span>
+                    <span style="color: #6b30a8">10</span>
+                  </div>
+                </div>
+                <!-- Branch -->
+                <div
+                  style="
+                    display: flex;
+                    width: 100%;
+                    justify-content: center;
+                    margin-top: 0;
+                  "
+                >
+                  <!-- left branch line -->
+                  <div
+                    style="
+                      flex: 1;
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                    "
+                  >
+                    <div
+                      style="width: 2px; height: 12px; background: #b0b8d0"
+                    ></div>
+                    <!-- id: x -->
+                    <div
+                      style="
+                        background: rgba(245, 131, 0, 0.08);
+                        border: 1.5px solid var(--orange);
+                        border-radius: 8px;
+                        padding: 5px 12px;
+                        text-align: center;
+                      "
+                    >
+                      <div
+                        style="
+                          font-size: 9.5px;
+                          color: #6b7a99;
+                          margin-bottom: 3px;
+                          font-weight: 600;
+                          letter-spacing: 0.4px;
+                        "
+                      >
+                        Identifier
+                      </div>
+                      <div
+                        style="
+                          font-size: 15px;
+                          font-weight: 700;
+                          color: #1b3380;
+                        "
+                      >
+                        x
+                      </div>
+                    </div>
+                  </div>
+                  <!-- right branch line -->
+                  <div
+                    style="
+                      flex: 1;
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                    "
+                  >
+                    <div
+                      style="width: 2px; height: 12px; background: #b0b8d0"
+                    ></div>
+                    <!-- init: 10 -->
+                    <div
+                      style="
+                        background: rgba(150, 70, 200, 0.08);
+                        border: 1.5px solid #9646c8;
+                        border-radius: 8px;
+                        padding: 5px 12px;
+                        text-align: center;
+                      "
+                    >
+                      <div
+                        style="
+                          font-size: 9.5px;
+                          color: #6b7a99;
+                          margin-bottom: 3px;
+                          font-weight: 600;
+                          letter-spacing: 0.4px;
+                        "
+                      >
+                        NumericLiteral
+                      </div>
+                      <div
+                        style="
+                          font-size: 15px;
+                          font-weight: 700;
+                          color: #6b30a8;
+                        "
+                      >
+                        10
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p style="font-size: 11.5px; color: var(--text-muted); margin: 0; line-height: 1.6;">
+                Tokens become a tree. <code style="font-family:monospace">function</code> and <code style="font-family:monospace">{}</code> nodes mark <strong style="color:#9646c8">scope boundaries</strong>.
+              </p>
+            </div>
+          </div>
+
+          <!-- Bottom takeaway row -->
+          <div
+            style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px"
+          >
+            <div
+              style="
+                background: rgba(27, 135, 230, 0.07);
+                border: 1px solid rgba(27, 135, 230, 0.25);
+                border-radius: 10px;
+                padding: 12px 14px;
+              "
+            >
+              <div
+                style="
+                  font-weight: 700;
+                  color: var(--electric);
+                  font-size: 12px;
+                  margin-bottom: 5px;
+                "
+              >
+                📌 Scope is decided here
+              </div>
+              <div
+                style="
+                  font-size: 12px;
+                  color: var(--text-dim);
+                  line-height: 1.6;
+                "
+              >
+                Every <code style="font-family:monospace;color:var(--dark)">function</code> and <code style="font-family:monospace;color:var(--dark)">{…}</code> locks in scope — <strong>before execution</strong>.
+              </div>
+            </div>
+            <div
+              style="
+                background: rgba(245, 131, 0, 0.07);
+                border: 1px solid rgba(245, 131, 0, 0.25);
+                border-radius: 10px;
+                padding: 12px 14px;
+              "
+            >
+              <div
+                style="
+                  font-weight: 700;
+                  color: var(--orange);
+                  font-size: 12px;
+                  margin-bottom: 5px;
+                "
+              >
+                📌 Identifiers are registered
+              </div>
+              <div
+                style="
+                  font-size: 12px;
+                  color: var(--text-dim);
+                  line-height: 1.6;
+                "
+              >
+                All declarations are recorded in their scope — this is what makes hoisting possible.
+              </div>
+            </div>
+            <div
+              style="
+                background: rgba(150, 70, 200, 0.07);
+                border: 1px solid rgba(150, 70, 200, 0.25);
+                border-radius: 10px;
+                padding: 12px 14px;
+              "
+            >
+              <div
+                style="
+                  font-weight: 700;
+                  color: #9646c8;
+                  font-size: 12px;
+                  margin-bottom: 5px;
+                "
+              >
+                📌 Lexical — not dynamic
+              </div>
+              <div
+                style="
+                  font-size: 12px;
+                  color: var(--text-dim);
+                  line-height: 1.6;
+                "
+              >
+                Scope is set from the <em>source text</em> — where you <em>write</em> it matters, not where you <em>call</em> it.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 06 HOW SCOPE IS CREATED -->
+        <section class="slide" id="slide-6">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 04</div>
+            <div class="slide-title">How Scope Is Created During Parsing</div>
+            <div class="slide-sub">
+              Scope is decided <em>before</em> the first line of code executes
+            </div>
+          </div>
+          <div class="grid-2" style="align-items: start; gap: 16px">
+            <div>
+              <div class="card">
+                <div class="card-title">Parser discovers scope boundaries</div>
+                <div class="scope-box s-global" style="margin-top: 10px">
+                  <div class="scope-lbl sl-g">Global Scope</div>
+                  <div
+                    style="
+                      font-size: 12px;
+                      font-family: &quot;JetBrains Mono&quot;, monospace;
+                      color: var(--dark);
+                      padding-top: 8px;
+                    "
+                  >
+                    env:
+                    <span style="color: #1a7a40; font-weight: 600"
+                      >"production"</span
+                    >
+                  </div>
+                  <div class="scope-box s-outer" style="margin-top: 14px">
+                    <div class="scope-lbl sl-o">Function Scope — greet()</div>
+                    <div
+                      style="
+                        font-size: 12px;
+                        font-family: &quot;JetBrains Mono&quot;, monospace;
+                        color: var(--dark);
+                        padding-top: 8px;
+                      "
+                    >
+                      name:
+                      <span style="color: #c05a00; font-weight: 600"
+                        >param</span
+                      >
+                    </div>
+                    <div class="scope-box s-inner" style="margin-top: 14px">
+                      <div class="scope-lbl sl-i">Block Scope — if block</div>
+                      <div
+                        style="
+                          font-size: 12px;
+                          font-family: &quot;JetBrains Mono&quot;, monospace;
+                          color: var(--dark);
+                          padding-top: 8px;
+                        "
+                      >
+                        msg:
+                        <span style="color: #6b30a8; font-weight: 600"
+                          >let</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="card">
+                <div class="card-title">Source that creates the scope above</div>
+                <div class="code" data-code="scope-parse" data-lang="js"></div>
+              </div>
+              <div class="callout" style="margin-top: 12px">
+                Each <code style="font-family:monospace;color:var(--electric)">function</code> and <code style="font-family:monospace;color:var(--electric)">{}</code> block opens a new scope — registered at parse time, before any code runs.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 07 LEXICAL SCOPE -->
+        <section class="slide" id="slide-7">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 05</div>
+            <div class="slide-title">Lexical Scope</div>
+            <div class="slide-sub">
+              Scope is determined by where you <em>write</em> code, not where
+              you <em>call</em> it
+            </div>
+          </div>
+          <div class="grid-2" style="align-items: start; gap: 16px">
+            <div>
+              <div class="card" style="margin-bottom: 12px">
+                <div class="card-title">Example</div>
+                <div class="code" data-code="lexical" data-lang="js"></div>
+              </div>
+              <div class="callout">
+                <strong>Mental model:</strong> draw boxes around each function
+                body. Inner boxes can see outward — outer boxes can never see
+                inward.
+              </div>
+            </div>
+            <div>
+              <div class="card" style="margin-bottom: 12px">
+                <div class="card-title">Scope boundaries as nested boxes</div>
+                <div
+                  class="scope-box s-global"
+                  style="padding: 14px 14px 14px 14px"
+                >
+                  <div class="scope-lbl sl-g">Global</div>
+                  <div
+                    style="
+                      padding-top: 8px;
+                      padding-bottom: 10px;
+                      font-size: 12.5px;
+                      color: var(--dark);
+                    "
+                  >
+                    visible:
+                    <span style="color: var(--electric); font-weight: 700"
+                      >outer</span
+                    >
+                  </div>
+                  <div
+                    class="scope-box s-outer"
+                    style="padding: 14px 14px 14px 14px; margin-top: 4px"
+                  >
+                    <div class="scope-lbl sl-o">outer()</div>
+                    <div
+                      style="
+                        padding-top: 8px;
+                        padding-bottom: 10px;
+                        font-size: 12.5px;
+                        color: var(--dark);
+                      "
+                    >
+                      visible:
+                      <span style="color: #1a7a40; font-weight: 700">a</span>,
+                      outer
+                    </div>
+                    <div
+                      class="scope-box s-inner"
+                      style="padding: 14px 14px 14px 14px; margin-top: 4px"
+                    >
+                      <div class="scope-lbl sl-i">inner()</div>
+                      <div
+                        style="
+                          padding-top: 8px;
+                          font-size: 12.5px;
+                          color: var(--dark);
+                        "
+                      >
+                        visible:
+                        <span style="color: #6b30a8; font-weight: 700">b</span>,
+                        a, outer
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-title">Key rules</div>
+                <ul class="blist">
+                  <li>
+                    Scope is set at parse time — calling
+                    <code style="font-family: monospace; color: var(--electric)"
+                      >inner()</code
+                    >
+                    from anywhere gives the same scope
+                  </li>
+                  <li>
+                    A function always has access to its definition-site scope
+                  </li>
+                  <li>This is what makes closures possible</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 08 SCOPE TYPES -->
+        <section class="slide" id="slide-8">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 06</div>
+            <div class="slide-title">Scope Types</div>
+            <div class="slide-sub">
+              Four containers where identifiers can live
+            </div>
+          </div>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              grid-template-rows: auto auto;
+              gap: 14px;
+            "
+          >
+            <div class="card">
+              <div class="card-title">&#127758; Global scope</div>
+              <div class="code" data-code="scope-global" data-lang="js"></div>
+              <div
+                style="
+                  margin-top: 8px;
+                  font-size: 12.5px;
+                  color: var(--text-dim);
+                "
+              >
+                Accessible everywhere. Avoid polluting it.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">&#128218; Function scope</div>
+              <div class="code" data-code="scope-fn" data-lang="js"></div>
+              <div
+                style="
+                  margin-top: 8px;
+                  font-size: 12.5px;
+                  color: var(--text-dim);
+                "
+              >
+                <code style="font-family: monospace; color: var(--electric)"
+                  >var</code
+                >
+                leaks out of blocks but NOT out of functions.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">
+                &#128068; Block scope
+                <span class="badge badge-blue" style="margin-left: 6px"
+                  >ES6</span
+                >
+              </div>
+              <div class="code" data-code="scope-block" data-lang="js"></div>
+              <div
+                style="
+                  margin-top: 8px;
+                  font-size: 12.5px;
+                  color: var(--text-dim);
+                "
+              >
+                <code style="font-family: monospace; color: var(--electric)"
+                  >let</code
+                >
+                /
+                <code style="font-family: monospace; color: var(--electric)"
+                  >const</code
+                >
+                are confined to the nearest
+                <code style="font-family: monospace">{}</code>.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 09 SCOPE CHAIN & SHADOWING -->
+        <section class="slide" id="slide-9">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 07</div>
+            <div class="slide-title">Scope Chain &amp; Shadowing</div>
+            <div class="slide-sub">
+              When a variable is used, the engine walks up the chain of scopes
+              until it finds it — or throws a ReferenceError
+            </div>
+          </div>
+
+          <div
+            style="
+              display: grid;
+              grid-template-columns: 1fr 1px 1fr;
+              gap: 0;
+              align-items: start;
+            "
+          >
+            <!-- LEFT: Scope chain -->
+            <div style="padding-right: 18px">
+              <!-- Section label -->
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-bottom: 12px;
+                "
+              >
+                <div
+                  style="
+                    width: 4px;
+                    height: 20px;
+                    background: var(--electric);
+                    border-radius: 2px;
+                  "
+                ></div>
+                <div
+                  style="
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: var(--electric);
+                    letter-spacing: 0.3px;
+                  "
+                >
+                  Scope Chain
+                </div>
+              </div>
+
+              <div class="card" style="margin-bottom: 12px">
+                <div class="card-title">
+                  Code — where is
+                  <code style="font-family: monospace; color: var(--electric)"
+                    >x</code
+                  >
+                  declared?
+                </div>
+                <div class="code" data-code="chain" data-lang="js"></div>
+              </div>
+
+              <div class="card">
+                <div class="card-title">
+                  Lookup walk — resolving
+                  <code style="font-family: monospace; color: var(--electric)"
+                    >x</code
+                  >
+                  inside
+                  <code style="font-family: monospace; color: #6b30a8"
+                    >inner()</code
+                  >
+                </div>
+
+                <!-- Step 1 -->
+                <div
+                  style="
+                    display: flex;
+                    align-items: stretch;
+                    gap: 10px;
+                    margin-bottom: 8px;
+                  "
+                >
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                    "
+                  >
+                    <div
+                      style="
+                        width: 28px;
+                        height: 28px;
+                        border-radius: 50%;
+                        background: rgba(107, 48, 168, 0.12);
+                        border: 2px solid #9646c8;
+                        color: #6b30a8;
+                        font-weight: 700;
+                        font-size: 12px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        flex-shrink: 0;
+                      "
+                    >
+                      1
+                    </div>
+                    <div
+                      style="
+                        width: 2px;
+                        flex: 1;
+                        background: #e0e5f0;
+                        margin: 4px 0;
+                      "
+                    ></div>
+                  </div>
+                  <div style="flex: 1; padding-bottom: 8px">
+                    <div
+                      style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        margin-bottom: 4px;
+                      "
+                    >
+                      <div
+                        class="chain-box ch-inner"
+                        style="font-size: 11px; padding: 3px 10px"
+                      >
+                        inner()
+                      </div>
+                      <div
+                        style="
+                          font-size: 12px;
+                          color: #c0392b;
+                          font-weight: 600;
+                        "
+                      >
+                        ✗ not found
+                      </div>
+                    </div>
+                    <div
+                      style="
+                        font-size: 11.5px;
+                        color: var(--text-dim);
+                        line-height: 1.5;
+                      "
+                    >
+                      <code style="font-family: monospace; color: var(--dark)"
+                        >inner()</code
+                      >
+                      only has its own local variables. No
+                      <code style="font-family: monospace; color: var(--dark)"
+                        >x</code
+                      >
+                      here — engine looks up.
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div
+                  style="
+                    display: flex;
+                    align-items: stretch;
+                    gap: 10px;
+                    margin-bottom: 8px;
+                  "
+                >
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                    "
+                  >
+                    <div
+                      style="
+                        width: 28px;
+                        height: 28px;
+                        border-radius: 50%;
+                        background: rgba(245, 131, 0, 0.1);
+                        border: 2px solid var(--orange);
+                        color: #c05a00;
+                        font-weight: 700;
+                        font-size: 12px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        flex-shrink: 0;
+                      "
+                    >
+                      2
+                    </div>
+                    <div
+                      style="
+                        width: 2px;
+                        flex: 1;
+                        background: #e0e5f0;
+                        margin: 4px 0;
+                      "
+                    ></div>
+                  </div>
+                  <div style="flex: 1; padding-bottom: 8px">
+                    <div
+                      style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        margin-bottom: 4px;
+                      "
+                    >
+                      <div
+                        class="chain-box ch-outer"
+                        style="font-size: 11px; padding: 3px 10px"
+                      >
+                        outer()
+                      </div>
+                      <div
+                        style="
+                          font-size: 12px;
+                          color: #c0392b;
+                          font-weight: 600;
+                        "
+                      >
+                        ✗ not found
+                      </div>
+                    </div>
+                    <div
+                      style="
+                        font-size: 11.5px;
+                        color: var(--text-dim);
+                        line-height: 1.5;
+                      "
+                    >
+                      <code style="font-family: monospace; color: var(--dark)"
+                        >outer()</code
+                      >
+                      also has no
+                      <code style="font-family: monospace; color: var(--dark)"
+                        >x</code
+                      >. Engine continues up the chain.
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div style="display: flex; align-items: stretch; gap: 10px">
+                  <div
+                    style="
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                    "
+                  >
+                    <div
+                      style="
+                        width: 28px;
+                        height: 28px;
+                        border-radius: 50%;
+                        background: rgba(27, 51, 128, 0.1);
+                        border: 2px solid #1b3380;
+                        color: #1b3380;
+                        font-weight: 700;
+                        font-size: 12px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        flex-shrink: 0;
+                      "
+                    >
+                      3
+                    </div>
+                  </div>
+                  <div style="flex: 1">
+                    <div
+                      style="
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        margin-bottom: 4px;
+                      "
+                    >
+                      <div
+                        class="chain-box ch-global"
+                        style="font-size: 11px; padding: 3px 10px"
+                      >
+                        global
+                      </div>
+                      <div
+                        style="
+                          font-size: 12px;
+                          color: #1a7a40;
+                          font-weight: 600;
+                        "
+                      >
+                        ✓ found
+                        <code style="font-family: monospace">x = 1</code>
+                      </div>
+                    </div>
+                    <div
+                      style="
+                        font-size: 11.5px;
+                        color: var(--text-dim);
+                        line-height: 1.5;
+                      "
+                    >
+                      <code style="font-family: monospace; color: var(--dark)"
+                        >x</code
+                      >
+                      is declared at global scope. Value
+                      <code style="font-family: monospace; color: var(--dark)"
+                        >1</code
+                      >
+                      is returned. If not found anywhere →
+                      <code style="font-family: monospace; color: #c0392b"
+                        >ReferenceError</code
+                      >.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Divider -->
+            <div
+              style="
+                background: #e0e5f0;
+                width: 1px;
+                margin: 0 0;
+                align-self: stretch;
+              "
+            ></div>
+
+            <!-- RIGHT: Shadowing -->
+            <div style="padding-left: 18px">
+              <!-- Section label -->
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  margin-bottom: 12px;
+                "
+              >
+                <div
+                  style="
+                    width: 4px;
+                    height: 20px;
+                    background: var(--orange);
+                    border-radius: 2px;
+                  "
+                ></div>
+                <div
+                  style="
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: #c05a00;
+                    letter-spacing: 0.3px;
+                  "
+                >
+                  Shadowing
+                </div>
+              </div>
+
+              <div class="card" style="margin-bottom: 12px">
+                <div class="card-title">Same name, different scope</div>
+                <div class="code" data-code="shadow" data-lang="js"></div>
+              </div>
+
+              <!-- Shadow explainer -->
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 8px;
+                  margin-bottom: 10px;
+                "
+              >
+                <div
+                  style="
+                    background: rgba(27, 51, 128, 0.06);
+                    border: 1.5px solid rgba(27, 51, 128, 0.2);
+                    border-radius: 10px;
+                    padding: 10px 12px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 10px;
+                      font-weight: 700;
+                      color: #1b3380;
+                      letter-spacing: 0.5px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    GLOBAL SCOPE
+                  </div>
+                  <div
+                    style="
+                      font-family: &quot;JetBrains Mono&quot;, monospace;
+                      font-size: 12.5px;
+                      color: var(--dark);
+                    "
+                  >
+                    color =
+                    <span style="color: #1a7a40; font-weight: 700">"blue"</span>
+                  </div>
+                  <div
+                    style="
+                      font-size: 11px;
+                      color: var(--text-dim);
+                      margin-top: 5px;
+                    "
+                  >
+                    Untouched. Still <strong>"blue"</strong> after
+                    <code style="font-family: monospace">paint()</code> returns.
+                  </div>
+                </div>
+                <div
+                  style="
+                    background: rgba(245, 131, 0, 0.06);
+                    border: 1.5px solid rgba(245, 131, 0, 0.25);
+                    border-radius: 10px;
+                    padding: 10px 12px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 10px;
+                      font-weight: 700;
+                      color: #c05a00;
+                      letter-spacing: 0.5px;
+                      margin-bottom: 6px;
+                    "
+                  >
+                    paint() SCOPE
+                  </div>
+                  <div
+                    style="
+                      font-family: &quot;JetBrains Mono&quot;, monospace;
+                      font-size: 12.5px;
+                      color: var(--dark);
+                    "
+                  >
+                    color =
+                    <span style="color: #c0392b; font-weight: 700">"red"</span>
+                  </div>
+                  <div
+                    style="
+                      font-size: 11px;
+                      color: var(--text-dim);
+                      margin-top: 5px;
+                    "
+                  >
+                    A <em>new</em> binding. Shadows the global but doesn't
+                    overwrite it.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Key rules -->
+              <div
+                style="
+                  background: rgba(27, 135, 230, 0.05);
+                  border: 1px solid rgba(27, 135, 230, 0.2);
+                  border-radius: 10px;
+                  padding: 12px 14px;
+                "
+              >
+                <div
+                  style="
+                    font-weight: 700;
+                    color: var(--dark);
+                    font-size: 12.5px;
+                    margin-bottom: 8px;
+                  "
+                >
+                  Key rules
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px">
+                  <div
+                    style="
+                      display: flex;
+                      gap: 8px;
+                      align-items: flex-start;
+                      font-size: 12px;
+                      color: var(--text-dim);
+                    "
+                  >
+                    <span
+                      style="
+                        color: var(--electric);
+                        font-weight: 700;
+                        flex-shrink: 0;
+                      "
+                      >→</span
+                    >
+                    <span
+                      >Engine always starts at the
+                      <strong style="color: var(--dark)"
+                        >innermost scope</strong
+                      >
+                      and walks outward — never inward.</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      gap: 8px;
+                      align-items: flex-start;
+                      font-size: 12px;
+                      color: var(--text-dim);
+                    "
+                  >
+                    <span
+                      style="
+                        color: var(--electric);
+                        font-weight: 700;
+                        flex-shrink: 0;
+                      "
+                      >→</span
+                    >
+                    <span
+                      >Shadowing
+                      <strong style="color: var(--dark)">hides</strong> the
+                      outer variable — it does
+                      <strong style="color: var(--dark)">not mutate</strong>
+                      it.</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      gap: 8px;
+                      align-items: flex-start;
+                      font-size: 12px;
+                      color: var(--text-dim);
+                    "
+                  >
+                    <span
+                      style="
+                        color: var(--electric);
+                        font-weight: 700;
+                        flex-shrink: 0;
+                      "
+                      >→</span
+                    >
+                    <span
+                      >If no scope in the chain has the name →
+                      <code style="font-family: monospace; color: #c0392b"
+                        >ReferenceError: x is not defined</code
+                      >.</span
+                    >
+                  </div>
+                  <div
+                    style="
+                      display: flex;
+                      gap: 8px;
+                      align-items: flex-start;
+                      font-size: 12px;
+                      color: var(--text-dim);
+                    "
+                  >
+                    <span
+                      style="
+                        color: var(--electric);
+                        font-weight: 700;
+                        flex-shrink: 0;
+                      "
+                      >→</span
+                    >
+                    <span
+                      >The chain is fixed at
+                      <strong style="color: var(--dark)">parse time</strong> —
+                      it never changes at runtime.</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- end grid -->
+        </section>
+
+        <!-- SLIDE 10 EXECUTION CONTEXT INTERACTIVE -->
+        <!-- SLIDE 10 EXECUTION CONTEXT -->
+        <section class="slide" id="slide-10">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 08</div>
+            <div class="slide-title">Execution Context</div>
+            <div class="slide-sub">
+              The private environment JavaScript builds every time a function is called
+            </div>
+          </div>
+
+          <!-- Core concept -->
+          <div class="callout" style="margin-bottom: 14px">
+            <strong>Scope</strong> is the rule — fixed at write time.&nbsp;&nbsp;
+            <strong>Execution context</strong> is the room — built fresh at call time.<br>
+            The <strong>scope chain lives inside every execution context</strong> — that's how a function looks up variables from outer scopes.
+          </div>
+
+          <!-- Two phases side by side -->
+          <div class="grid-2" style="align-items: start; gap: 16px; margin-bottom: 14px">
+            <div class="card">
+              <div class="card-title">① Creation Phase</div>
+              <ul class="blist">
+                <li>Memory allocated for variables &amp; functions</li>
+                <li>Scope chain <strong>wired up</strong> from lexical position</li>
+                <li><code>var</code> → <code>undefined</code> &nbsp;·&nbsp; functions → fully hoisted</li>
+              </ul>
+            </div>
+
+            <div class="card">
+              <div class="card-title">② Execution Phase</div>
+              <ul class="blist">
+                <li>Code runs line by line</li>
+                <li>Variables receive their actual values</li>
+                <li>Each nested call pushes a <strong>new context</strong> onto the call stack</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Scope takeaway -->
+          <div class="card">
+            <div class="card-title">Why this matters for scope</div>
+            <ul class="blist" style="display: flex; column-gap: 32px; row-gap: 6px; flex-wrap: wrap; padding-left: 0; list-style: none">
+              <li>Scope chain is built from <strong>where the function was written</strong>, not where it was called</li>
+              <li>Context is destroyed when the call ends — unless a <strong>closure</strong> keeps the scope chain alive</li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- SLIDE 11 INTERACTIVE DEMO -->
+        <section class="slide" id="slide-11">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-bottom: 10px;
+              flex-shrink: 0;
+            "
+          >
+            <div class="slide-tag" style="margin-bottom: 0">
+              Interactive Demo
+            </div>
+            <div
+              class="slide-title"
+              style="margin-bottom: 0; font-size: clamp(18px, 2.8vw, 26px)"
+            >
+              Execution Context <span style="color: var(--electric)">Live</span>
+            </div>
+            <span
+              id="ecd-phase"
+              class="ecd-phase idle"
+              style="
+                margin-left: auto;
+                font-size: 12px;
+                padding: 3px 14px;
+                font-weight: 700;
+              "
+              >⚪ Idle</span
+            >
+          </div>
+
+          <div class="ecd-wrap" style="height: 380px">
+            <!-- Left: Code -->
+            <div class="ecd-left">
+              <div class="ecd-code">
+                <div class="ecd-code-hd">
+                  nested-scope.js · 3 execution contexts
+                </div>
+                <div id="ecd-lines">
+                  <div class="ecd-line" data-line="1">
+                    <span class="ln">1</span
+                    ><span class="lc"
+                      ><span style="color: #c792ea">const</span>
+                      <span style="color: #89ddff">app</span> =
+                      <span style="color: #c3e88d">"QuestionPro"</span></span
+                    >
+                  </div>
+                  <div class="ecd-line" data-line="2">
+                    <span class="ln">2</span><span class="lc">&nbsp;</span>
+                  </div>
+                  <div class="ecd-line" data-line="3">
+                    <span class="ln">3</span
+                    ><span class="lc"
+                      ><span style="color: #c792ea">function</span>
+                      <span style="color: #82aaff">outer</span>(<span
+                        style="color: #89ddff"
+                        >env</span
+                      >) {</span
+                    >
+                  </div>
+                  <div class="ecd-line" data-line="4">
+                    <span class="ln">4</span
+                    ><span class="lc"
+                      >&nbsp;&nbsp;<span style="color: #c792ea">const</span>
+                      <span style="color: #89ddff">mode</span> =
+                      <span style="color: #89ddff">env</span></span
+                    >
+                  </div>
+                  <div class="ecd-line" data-line="5">
+                    <span class="ln">5</span><span class="lc">&nbsp;</span>
+                  </div>
+                  <div class="ecd-line" data-line="6">
+                    <span class="ln">6</span
+                    ><span class="lc"
+                      >&nbsp;&nbsp;<span style="color: #c792ea">function</span>
+                      <span style="color: #82aaff">inner</span>() {</span
+                    >
+                  </div>
+                  <div class="ecd-line" data-line="7">
+                    <span class="ln">7</span
+                    ><span class="lc"
+                      >&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #c792ea"
+                        >const</span
+                      >
+                      <span style="color: #89ddff">msg</span> =
+                      <span style="color: #89ddff">app</span> +
+                      <span style="color: #c3e88d">"/"</span> +
+                      <span style="color: #89ddff">mode</span></span
+                    >
+                  </div>
+                  <div class="ecd-line" data-line="8">
+                    <span class="ln">8</span
+                    ><span class="lc"
+                      >&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #c792ea"
+                        >return</span
+                      >
+                      <span style="color: #89ddff">msg</span></span
+                    >
+                  </div>
+                  <div class="ecd-line" data-line="9">
+                    <span class="ln">9</span
+                    ><span class="lc">&nbsp;&nbsp;}</span>
+                  </div>
+                  <div class="ecd-line" data-line="10">
+                    <span class="ln">10</span><span class="lc">&nbsp;</span>
+                  </div>
+                  <div class="ecd-line" data-line="11">
+                    <span class="ln">11</span
+                    ><span class="lc"
+                      >&nbsp;&nbsp;<span style="color: #c792ea">return</span>
+                      <span style="color: #82aaff">inner</span>()</span
+                    >
+                  </div>
+                  <div class="ecd-line" data-line="12">
+                    <span class="ln">12</span><span class="lc">}</span>
+                  </div>
+                  <div class="ecd-line" data-line="13">
+                    <span class="ln">13</span><span class="lc">&nbsp;</span>
+                  </div>
+                  <div class="ecd-line" data-line="14">
+                    <span class="ln">14</span
+                    ><span class="lc"
+                      ><span style="color: #c792ea">const</span>
+                      <span style="color: #89ddff">result</span> =
+                      <span style="color: #82aaff">outer</span>(<span
+                        style="color: #c3e88d"
+                        >"dev"</span
+                      >)</span
+                    >
+                  </div>
+                  <div class="ecd-line" data-line="15">
+                    <span class="ln">15</span
+                    ><span class="lc"
+                      >console.<span style="color: #82aaff">log</span>(<span
+                        style="color: #89ddff"
+                        >result</span
+                      >)</span
+                    >
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Stack + Env -->
+            <div class="ecd-right">
+              <div class="ecd-stack-wrap">
+                <div class="ecd-sec-title">📚 Call Stack</div>
+                <div class="ecd-frames" id="ecd-frames">
+                  <div
+                    style="
+                      color: var(--text-muted);
+                      font-size: 12px;
+                      text-align: center;
+                      padding: 8px 0;
+                      font-style: italic;
+                    "
+                  >
+                    — empty —
+                  </div>
+                </div>
+              </div>
+              <div
+                class="ecd-env-wrap"
+                style="
+                  flex: 1;
+                  overflow: hidden;
+                  display: flex;
+                  flex-direction: column;
+                "
+              >
+                <div class="ecd-sec-title" id="ecd-env-lbl">
+                  Variable Environment
+                </div>
+                <div id="ecd-env-body" style="flex: 1; overflow: auto">
+                  <div
+                    style="
+                      color: var(--text-muted);
+                      font-size: 12px;
+                      text-align: center;
+                      padding: 10px;
+                      font-style: italic;
+                    "
+                  >
+                    — waiting —
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            id="ecd-caption"
+            class="ecd-phase idle"
+            style="
+              margin-top: 8px;
+              font-size: 12.5px;
+              padding: 7px 12px;
+              line-height: 1.5;
+              flex-shrink: 0;
+            "
+          >
+            3 scopes — global, outer(), inner(). Click "Next Step →" to watch
+            all 3 execution contexts come to life.
+          </div>
+
+          <div class="ecd-controls" style="margin-top: 7px; flex-shrink: 0">
+            <button class="ecd-btn" id="ecd-prev" onclick="ecGo(-1)" disabled>
+              ← Prev
+            </button>
+            <span class="ecd-step-lbl" id="ecd-lbl">Step 0 / 11</span>
+            <button class="ecd-btn ecd-primary" id="ecd-next" onclick="ecGo(1)">
+              Next Step →
+            </button>
+          </div>
+        </section>
+
+        <!-- SLIDE 12 HOISTING -->
+        <section class="slide" id="slide-12">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 09</div>
+            <div class="slide-title">Hoisting</div>
+            <div class="slide-sub">
+              JavaScript moves declarations to the top of their scope before any
+              code runs — assignments stay where you wrote them
+            </div>
+          </div>
+
+          <div class="callout" style="margin-bottom: 14px">
+            Before any code runs, the engine scans the scope and registers all declarations — only the name, never the value.
+          </div>
+
+          <div class="grid-2" style="align-items: start; gap: 16px">
+            <!-- LEFT: var + function examples -->
+            <div style="display: flex; flex-direction: column; gap: 12px">
+              <div class="card">
+                <div class="card-title"><code style="font-family:monospace;color:var(--electric)">var</code> — hoisted as <code style="font-family:monospace">undefined</code></div>
+                <div class="code" data-code="hoist-var" data-lang="js"></div>
+              </div>
+              <div class="card">
+                <div class="card-title"><code style="font-family:monospace;color:var(--electric)">function</code> — fully hoisted with body</div>
+                <div class="code" data-code="hoist-fn" data-lang="js"></div>
+              </div>
+            </div>
+
+            <!-- RIGHT: table -->
+            <div>
+              <div class="card">
+                <div class="card-title">What gets hoisted and how</div>
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th>Keyword</th>
+                      <th>Hoisted?</th>
+                      <th>Initial value</th>
+                      <th>Use before line</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code style="font-family:monospace;color:var(--electric)">var</code></td>
+                      <td style="color:#1a7a40;font-weight:600">✓ Yes</td>
+                      <td><code style="font-family:monospace">undefined</code></td>
+                      <td style="color:#c05a00">undefined</td>
+                    </tr>
+                    <tr>
+                      <td><code style="font-family:monospace;color:var(--electric)">function</code></td>
+                      <td style="color:#1a7a40;font-weight:600">✓ Fully</td>
+                      <td>Complete body</td>
+                      <td style="color:#1a7a40">Works ✓</td>
+                    </tr>
+                    <tr>
+                      <td><code style="font-family:monospace;color:var(--electric)">let / const</code></td>
+                      <td style="color:#c05a00;font-weight:600">Partial</td>
+                      <td>TDZ — no value</td>
+                      <td style="color:#c0392b">ReferenceError ✗</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 12 TDZ -->
+        <section class="slide" id="slide-13">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 10</div>
+            <div class="slide-title">Temporal Dead Zone (TDZ)</div>
+            <div class="slide-sub">
+              The window between hoisting and initialisation for
+              <code style="font-family: monospace; color: var(--electric)"
+                >let</code
+              >
+              /
+              <code style="font-family: monospace; color: var(--electric)"
+                >const</code
+              >
+            </div>
+          </div>
+          <div class="grid-2" style="align-items: start; gap: 16px">
+            <div>
+              <div class="card" style="margin-bottom: 12px">
+                <div class="card-title">TDZ in action</div>
+                <div class="code" data-code="tdz" data-lang="js"></div>
+              </div>
+              <div class="card">
+                <div class="card-title">var vs let/const lifecycle</div>
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th>Phase</th>
+                      <th>var</th>
+                      <th>let / const</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Parse (hoist)</td>
+                      <td>
+                        <span class="badge badge-green"
+                          >registered + undefined</span
+                        >
+                      </td>
+                      <td>
+                        <span class="badge badge-yellow">registered only</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>TDZ</td>
+                      <td><span class="badge badge-green">no TDZ</span></td>
+                      <td>
+                        <span class="badge badge-red">ReferenceError</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Initialised</td>
+                      <td>at declaration line</td>
+                      <td>at declaration line</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <div class="card" style="margin-bottom: 12px">
+                <div class="card-title">Why TDZ exists</div>
+                <ul class="blist">
+                  <li>Prevents using a variable before it's logically ready</li>
+                  <li>
+                    Makes bugs visible immediately (ReferenceError) instead of
+                    silently returning
+                    <code style="font-family: monospace">undefined</code>
+                  </li>
+                  <li>Enables safer reasoning about constant values</li>
+                </ul>
+              </div>
+              <div class="callout">
+                <strong>Rule:</strong> always declare
+                <code style="font-family: monospace">let</code>/<code
+                  style="font-family: monospace"
+                  >const</code
+                >
+                before use. The TDZ is the engine enforcing this at runtime.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 13 CLOSURES -->
+        <section class="slide" id="slide-14">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 11</div>
+            <div class="slide-title">Closures</div>
+            <div class="slide-sub">
+              A function that remembers the scope it was created in — even after
+              that scope has returned
+            </div>
+          </div>
+          <div class="grid-2" style="align-items: start; gap: 16px">
+            <div>
+              <div class="card" style="margin-bottom: 12px">
+                <div class="card-title">Classic counter example</div>
+                <div
+                  class="code"
+                  data-code="closure-counter"
+                  data-lang="js"
+                ></div>
+              </div>
+              <div class="callout">
+                <strong>Definition:</strong> a closure is the combination of a
+                function <em>and</em> its surrounding lexical environment. The
+                outer scope record is kept alive in memory as long as any
+                reference to the inner function exists.
+              </div>
+            </div>
+            <div>
+              <div class="card" style="margin-bottom: 12px">
+                <div class="card-title">
+                  Closure as a factory — practical pattern
+                </div>
+                <div
+                  class="code"
+                  data-code="closure-factory"
+                  data-lang="js"
+                ></div>
+              </div>
+              <div class="card">
+                <div class="card-title">Where closures appear</div>
+                <ul class="blist">
+                  <li>Event handlers referencing outer state</li>
+                  <li>setTimeout / setInterval callbacks</li>
+                  <li>Module pattern &amp; private data</li>
+                  <li>
+                    React hooks (<code style="font-family: monospace"
+                      >useState</code
+                    >, <code style="font-family: monospace">useCallback</code>,
+                    <code style="font-family: monospace">useMemo</code>)
+                  </li>
+                  <li>Memoisation &amp; partial application</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 14 ASYNC LOOP TRAPS -->
+        <section class="slide" id="slide-15">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 12a</div>
+            <div class="slide-title">Async &amp; Loop Traps</div>
+            <div class="slide-sub">
+              The classic
+              <code style="font-family: monospace; color: var(--electric)"
+                >var</code
+              >
+              + loop bug — and three ways to fix it
+            </div>
+          </div>
+          <div class="grid-2" style="align-items: start; gap: 16px">
+            <div>
+              <div class="trap-box" style="margin-bottom: 12px">
+                <div
+                  style="
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: var(--red);
+                    margin-bottom: 8px;
+                  "
+                >
+                  &#128561; The trap — var in a loop
+                </div>
+                <div class="code" data-code="loop-trap" data-lang="js"></div>
+              </div>
+              <div class="callout">
+                <strong>Why it breaks:</strong>
+                <code style="font-family: monospace">var i</code> is
+                function-scoped — there is only <em>one</em>
+                <code style="font-family: monospace">i</code>. By the time any
+                callback fires, the loop has finished and
+                <code style="font-family: monospace">i === 3</code>.
+              </div>
+            </div>
+            <div>
+              <div class="fix-box" style="margin-bottom: 12px">
+                <div
+                  style="
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: var(--green);
+                    margin-bottom: 8px;
+                  "
+                >
+                  &#9989; Fix 1 — use let (block scope)
+                </div>
+                <div class="code" data-code="loop-fix-let" data-lang="js"></div>
+              </div>
+              <div class="fix-box" style="margin-bottom: 12px">
+                <div
+                  style="
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: var(--green);
+                    margin-bottom: 8px;
+                  "
+                >
+                  &#9989; Fix 2 — IIFE closure
+                </div>
+                <div
+                  class="code"
+                  data-code="loop-fix-iife"
+                  data-lang="js"
+                ></div>
+              </div>
+              <div class="fix-box">
+                <div
+                  style="
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: var(--green);
+                    margin-bottom: 8px;
+                  "
+                >
+                  &#9989; Fix 3 — forEach
+                </div>
+                <div
+                  class="code"
+                  data-code="loop-fix-foreach"
+                  data-lang="js"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 15 SCOPE IN JS FRAMEWORKS -->
+        <section class="slide" id="slide-16">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 12b</div>
+            <div class="slide-title">Scope in JavaScript Frameworks</div>
+            <div class="slide-sub">
+              How the same scope rules manifest in React and DOM event handlers
+            </div>
+          </div>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 14px;
+              align-items: start;
+            "
+          >
+            <!-- React hooks -->
+            <div class="rw-card">
+              <div class="rw-title">⚡ React — hooks &amp; stale closures</div>
+              <div class="code" data-code="rw-react" data-lang="jsx"></div>
+              <div
+                style="
+                  margin-top: 8px;
+                  font-size: 11.5px;
+                  color: var(--text-dim);
+                  line-height: 1.6;
+                "
+              >
+                <code style="font-family: monospace; color: var(--dark)"
+                  >handleClick</code
+                >
+                closes over
+                <code style="font-family: monospace; color: var(--dark)"
+                  >count</code
+                >. Without the dep array, it captures a stale value — classic
+                scope bug in React.
+              </div>
+            </div>
+
+            <!-- DOM event handlers -->
+            <div class="rw-card">
+              <div class="rw-title">
+                🖱️ DOM — event handlers close over scope
+              </div>
+              <div class="code" data-code="rw-dom" data-lang="js"></div>
+              <div
+                style="
+                  margin-top: 8px;
+                  font-size: 11.5px;
+                  color: var(--text-dim);
+                  line-height: 1.6;
+                "
+              >
+                Each button's handler closes over its own
+                <code style="font-family: monospace; color: var(--dark)"
+                  >i</code
+                >
+                because
+                <code style="font-family: monospace; color: var(--dark)"
+                  >let</code
+                >
+                creates a new block scope per iteration.
+                <code style="font-family: monospace; color: var(--dark)"
+                  >var</code
+                >
+                would share one binding — a classic loop bug.
+              </div>
+            </div>
+          </div>
+
+          <div class="callout" style="margin-top: 12px">
+            <strong>Common theme:</strong> React hooks and DOM event handlers
+            are all just functions — and functions create scope. Every closure,
+            chain lookup, and TDZ rule you've learned applies directly here.
+          </div>
+        </section>
+
+        <!-- SLIDE 16 REAL-WORLD PATTERNS -->
+        <section class="slide" id="slide-17">
+          <div class="slide-header">
+            <div class="slide-tag">Topic 12c</div>
+            <div class="slide-title">Real-World Scope Patterns</div>
+            <div class="slide-sub">
+              Patterns you'll see in production codebases
+            </div>
+          </div>
+          <div class="grid-3" style="align-items: start">
+            <div class="rw-card">
+              <div class="rw-title">&#128274; Module pattern</div>
+              <div
+                class="code"
+                data-code="rw-module-pattern"
+                data-lang="js"
+              ></div>
+              <div class="rw-explain">
+                <code style="font-family: monospace">_data</code> is private —
+                only <code style="font-family: monospace">set</code> and
+                <code style="font-family: monospace">get</code> can touch it via
+                closure.
+              </div>
+            </div>
+            <div class="rw-card">
+              <div class="rw-title">&#128203; Memoisation</div>
+              <div class="code" data-code="rw-memo" data-lang="js"></div>
+              <div class="rw-explain">
+                <code style="font-family: monospace">cache</code> persists
+                between calls via closure —
+                <code style="font-family: monospace">fn</code> only runs once
+                per unique key.
+              </div>
+            </div>
+            <div class="rw-card">
+              <div class="rw-title">&#128260; Partial application</div>
+              <div class="code" data-code="rw-partial" data-lang="js"></div>
+              <div class="rw-output">
+                <div class="out-label">Output</div>
+                <div class="out-line">add5(3) // → 8</div>
+                <div class="out-line">add5(10) // → 15</div>
+                <div class="out-line">add(2)(7) // → 9</div>
+              </div>
+              <div class="rw-explain">
+                <code style="font-family: monospace">add5</code> closes over
+                <code style="font-family: monospace">a = 5</code> — you only
+                need to pass <code style="font-family: monospace">b</code> each
+                time.
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SLIDE 18 SUMMARY -->
+        <section class="slide" id="slide-18">
+          <div class="slide-header">
+            <div class="slide-tag">Summary</div>
+            <div class="slide-title">Mental Models to Take Away</div>
+          </div>
+          <div class="grid-3" style="align-items: start; margin-bottom: 16px">
+            <div class="card">
+              <div class="card-title" style="color: var(--electric)">
+                &#128270; Scope = visibility rules
+              </div>
+              <ul class="blist" style="font-size: 12.5px">
+                <li>Set at parse time, not runtime</li>
+                <li>Nesting mirrors your code structure</li>
+                <li>Inner sees outer; outer is blind to inner</li>
+              </ul>
+            </div>
+            <div class="card">
+              <div class="card-title" style="color: var(--electric)">
+                &#127371; Execution Context = runtime env
+              </div>
+              <ul class="blist" style="font-size: 12.5px">
+                <li>Created per call, destroyed on return</li>
+                <li>
+                  Holds: Variable Env, Scope Chain,
+                  <code style="font-family: monospace">this</code>
+                </li>
+                <li>Call stack = stack of ECs</li>
+              </ul>
+            </div>
+            <div class="card">
+              <div class="card-title" style="color: var(--electric)">
+                &#128203; Closure = scope that survives
+              </div>
+              <ul class="blist" style="font-size: 12.5px">
+                <li>Inner function keeps outer scope alive</li>
+                <li>Powers: modules, hooks, factories</li>
+                <li>Watch the loop + async trap</li>
+              </ul>
+            </div>
+          </div>
+          <div class="grid-2" style="gap: 14px">
+            <div class="card">
+              <div class="card-title">Key rules at a glance</div>
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>Concept</th>
+                    <th>One-liner</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Lexical scope</td>
+                    <td>Where you write it is where it lives</td>
+                  </tr>
+                  <tr>
+                    <td>Scope chain</td>
+                    <td>Walk outward until found or ReferenceError</td>
+                  </tr>
+                  <tr>
+                    <td>Hoisting</td>
+                    <td>Declarations up, initialisations stay</td>
+                  </tr>
+                  <tr>
+                    <td>TDZ</td>
+                    <td>let/const exist but cannot be read before init</td>
+                  </tr>
+                  <tr>
+                    <td>Closure</td>
+                    <td>Function + its birth-scope environment</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="card">
+              <div class="card-title">Checklist for code review</div>
+              <ul class="blist" style="font-size: 13px">
+                <li>
+                  Using <code style="font-family: monospace">let</code>/<code
+                    style="font-family: monospace"
+                    >const</code
+                  >
+                  instead of <code style="font-family: monospace">var</code>?
+                </li>
+                <li>No accidental globals (missing declarations)?</li>
+                <li>Async callbacks in loops — are closures correct?</li>
+                <li>
+                  Stale closure in React hooks —
+                  <code style="font-family: monospace">useCallback</code> deps
+                  correct?
+                </li>
+                <li>Module-private state not accidentally exported?</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <footer id="footer">
+      <button
+        class="btn"
+        id="prevBtn"
+        onclick="navigate(-1)"
+        disabled
+        style="justify-self: start"
+      >
+        ← Prev
+      </button>
+      <div style="display: flex; align-items: center; gap: 18px">
+        <div class="dots" id="dots"></div>
+      </div>
+      <div
+        style="display: flex; align-items: center; gap: 12px; justify-self: end"
+      >
+        <div class="kbd-hint">
+          <span class="key">←</span
+          ><span class="key">→</span>&nbsp;navigate&nbsp;·&nbsp;<span
+            class="key"
+            >Space</span
+          >&nbsp;advance
+        </div>
+        <button class="btn primary" id="nextBtn" onclick="navigate(1)">
+          Next →
+        </button>
+      </div>
+    </footer>
+    <script>
+      const TOTAL = 18;
+      const hashSlide = parseInt(location.hash.replace("#slide-", ""));
+      let current = hashSlide >= 1 && hashSlide <= TOTAL ? hashSlide : 1;
+      // Build dots
+      const dotsEl = document.getElementById("dots");
+      for (let i = 0; i < TOTAL; i++) {
+        const d = document.createElement("div");
+        d.className = "dot";
+        d.onclick = () => navigateTo(i + 1);
+        dotsEl.appendChild(d);
+      }
+
+      function navigateTo(n) {
+        if (n < 1 || n > TOTAL) return;
+        document.getElementById("slide-" + current).classList.remove("active");
+        current = n;
+        document.getElementById("slide-" + current).classList.add("active");
+        document.getElementById("slide-num").textContent =
+          String(current).padStart(2, "0") +
+          " / " +
+          String(TOTAL).padStart(2, "0");
+        document.getElementById("prevBtn").disabled = current === 1;
+        document.getElementById("nextBtn").disabled = current === TOTAL;
+        console.log("current", (current / TOTAL) * 100 + "%");
+        document.getElementById("progress").style.width =
+          (current / TOTAL) * 100 + "%";
+        dotsEl
+          .querySelectorAll(".dot")
+          .forEach((d, i) => d.classList.toggle("on", i === current - 1));
+        // scroll slides-wrap to top on slide change
+        document.querySelector(".slides-wrap").scrollTop = 0;
+        history.replaceState(null, "", "#slide-" + n);
+      }
+
+      function navigate(dir) {
+        navigateTo(current + dir);
+      }
+
+      // Restore slide on load (syncs slide-num, progress, dots, buttons)
+      navigateTo(current);
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " ") {
+          e.preventDefault();
+          navigate(1);
+        }
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+          e.preventDefault();
+          navigate(-1);
+        }
+      });
+
+      let tx = 0;
+      document.addEventListener("touchstart", (e) => {
+        tx = e.changedTouches[0].clientX;
+      });
+      document.addEventListener("touchend", (e) => {
+        const dx = e.changedTouches[0].clientX - tx;
+        if (Math.abs(dx) > 50) navigate(dx < 0 ? 1 : -1);
+      });
+
+      const SNIPPETS = {
+        identifier: `<span class="kw">let</span>   <span class="vr">count</span>  = <span class="num">0</span>             <span class="cm">// variable identifier</span>
+<span class="kw">const</span> <span class="vr">PI</span>     = <span class="num">3.14</span>
+<span class="kw">function</span> <span class="fn">greet</span>(<span class="vr">name</span>) {  <span class="cm">// function + parameter</span>
+  <span class="kw">return</span> \`Hello \${<span class="vr">name</span>}\`
+}
+<span class="kw">class</span> <span class="fn">Survey</span> {}         <span class="cm">// class identifier</span>`,
+
+        "parse-input": `<span class="kw">const</span> <span class="vr">x</span> <span class="op">=</span> <span class="num">10</span><span class="op">;</span>`,
+
+        "ast-tree": `<span class="ast-node">Program</span>
+└─ <span class="ast-node">VariableDeclaration</span>  kind: "const"
+   └─ <span class="ast-node">VariableDeclarator</span>
+      ├─ id:   <span class="ast-node">Identifier</span>       name: "x"
+      └─ init: <span class="ast-node">NumericLiteral</span>   value: 10`,
+
+        "scope-parse": `<span class="kw">const</span> <span class="vr">env</span> <span class="op">=</span> <span class="str">"production"</span>   <span class="cm">// global scope</span>
+
+<span class="kw">function</span> <span class="fn">greet</span>(<span class="vr">name</span>) {         <span class="cm">// function scope opens</span>
+  <span class="kw">if</span> (<span class="vr">name</span>) {
+    <span class="kw">let</span> <span class="vr">msg</span> <span class="op">=</span> <span class="str">"hi"</span>             <span class="cm">// block scope opens</span>
+    <span class="kw">return</span> <span class="vr">msg</span>
+  }                              <span class="cm">// block scope closes</span>
+}                                <span class="cm">// function scope closes</span>`,
+
+        lexical: `<span class="kw">const</span> <span class="vr">name</span> <span class="op">=</span> <span class="str">"Global"</span>
+
+<span class="kw">function</span> <span class="fn">greet</span>() {
+  <span class="kw">const</span> <span class="vr">name</span> <span class="op">=</span> <span class="str">"Farhad"</span>
+
+  <span class="kw">function</span> <span class="fn">sayHi</span>() {
+    <span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">name</span>)  <span class="cm">// "Farhad" — always</span>
+  }
+
+  <span class="kw">return</span> <span class="vr">sayHi</span>
+}
+
+<span class="kw">const</span> <span class="vr">hi</span> <span class="op">=</span> <span class="fn">greet</span>()
+<span class="fn">hi</span>()  <span class="cm">// still "Farhad", not "Global"</span>
+<span class="cm">// called from global — but scope is</span>
+<span class="cm">// where sayHi was *written* (inside greet)</span>`,
+
+        "scope-global": `<span class="vr">window</span>.<span class="vr">theme</span> <span class="op">=</span> <span class="str">"dark"</span>   <span class="cm">// browser</span>
+<span class="kw">var</span> <span class="vr">legacy</span> <span class="op">=</span> <span class="num">42</span>          <span class="cm">// implicit global</span>`,
+
+        "scope-fn": `<span class="kw">function</span> <span class="fn">run</span>() {
+  <span class="kw">var</span> <span class="vr">x</span> <span class="op">=</span> <span class="num">1</span>
+  <span class="kw">if</span> (<span class="kw">true</span>) { <span class="kw">var</span> <span class="vr">x</span> <span class="op">=</span> <span class="num">2</span> }  <span class="cm">// same x!</span>
+  <span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">x</span>)              <span class="cm">// 2</span>
+}`,
+
+        "scope-block": `<span class="kw">if</span> (<span class="kw">true</span>) {
+  <span class="kw">let</span>   <span class="vr">a</span> <span class="op">=</span> <span class="num">1</span>
+  <span class="kw">const</span> <span class="vr">b</span> <span class="op">=</span> <span class="num">2</span>
+}
+<span class="fn">console</span>.<span class="fn">log</span>(<span class="kw">typeof</span> <span class="vr">a</span>)  <span class="cm">// "undefined"</span>`,
+
+        "scope-module": `<span class="cm">// utils.js</span>
+<span class="kw">const</span> <span class="vr">_secret</span> <span class="op">=</span> <span class="str">"hidden"</span>
+<span class="kw">export</span> <span class="kw">const</span> <span class="vr">api</span> <span class="op">=</span> <span class="str">"public"</span>
+<span class="cm">// _secret is NOT on window</span>`,
+
+        chain: `<span class="kw">const</span> <span class="vr">x</span> <span class="op">=</span> <span class="num">1</span>                <span class="cm">// global</span>
+
+<span class="kw">function</span> <span class="fn">outer</span>() {
+  <span class="kw">function</span> <span class="fn">inner</span>() {
+    <span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">x</span>)  <span class="cm">// 1 ← walks chain to global</span>
+  }
+  <span class="fn">inner</span>()
+}`,
+
+        shadow: `<span class="kw">let</span> <span class="vr">color</span> <span class="op">=</span> <span class="str">"blue"</span>         <span class="cm">// global</span>
+
+<span class="kw">function</span> <span class="fn">paint</span>() {
+  <span class="kw">let</span> <span class="vr">color</span> <span class="op">=</span> <span class="str">"red"</span>         <span class="cm">// shadows outer</span>
+  <span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">color</span>)        <span class="cm">// "red"</span>
+}
+<span class="fn">paint</span>()
+<span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">color</span>)          <span class="cm">// "blue" — unchanged</span>`,
+
+        "hoist-var": `<span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">x</span>)   <span class="cm">// undefined (NOT ReferenceError)</span>
+<span class="kw">var</span> <span class="vr">x</span> <span class="op">=</span> <span class="num">5</span>
+<span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">x</span>)   <span class="cm">// 5</span>`,
+
+        "hoist-fn": `<span class="fn">greet</span>()               <span class="cm">// "hello" — works fine</span>
+<span class="kw">function</span> <span class="fn">greet</span>() {
+  <span class="fn">console</span>.<span class="fn">log</span>(<span class="str">"hello"</span>)
+}`,
+
+        "hoist-parse": `<span class="cm">// engine registers before running:</span>
+<span class="kw">var</span> <span class="vr">x</span>           <span class="cm">// → undefined</span>
+<span class="kw">function</span> <span class="fn">greet</span>  <span class="cm">// → full function</span>`,
+
+        "hoist-exec": `<span class="cm">// then executes top-to-bottom:</span>
+<span class="fn">greet</span>()           <span class="cm">// ✓ available</span>
+<span class="vr">x</span> <span class="op">=</span> <span class="num">5</span>             <span class="cm">// assigned now</span>`,
+
+        tdz: `<span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">a</span>)   <span class="cm">// ✓ undefined  (var)</span>
+<span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">b</span>)   <span class="cm">// ✗ ReferenceError: TDZ</span>
+
+<span class="kw">var</span>   <span class="vr">a</span> <span class="op">=</span> <span class="num">1</span>
+<span class="kw">let</span>   <span class="vr">b</span> <span class="op">=</span> <span class="num">2</span>`,
+
+        "closure-counter": `<span class="kw">function</span> <span class="fn">makeCounter</span>() {
+  <span class="kw">let</span> <span class="vr">count</span> <span class="op">=</span> <span class="num">0</span>            <span class="cm">// outer scope</span>
+  <span class="kw">return</span> () <span class="op">=></span> {
+    <span class="vr">count</span><span class="op">++</span>
+    <span class="kw">return</span> <span class="vr">count</span>           <span class="cm">// closes over count</span>
+  }
+}
+
+<span class="kw">const</span> <span class="vr">inc</span> <span class="op">=</span> <span class="fn">makeCounter</span>()
+<span class="fn">inc</span>()   <span class="cm">// 1</span>
+<span class="fn">inc</span>()   <span class="cm">// 2  ← same count, persists!</span>`,
+
+        "closure-factory": `<span class="kw">function</span> <span class="fn">multiplier</span>(<span class="vr">factor</span>) {
+  <span class="kw">return</span> <span class="vr">n</span> <span class="op">=></span> <span class="vr">n</span> <span class="op">*</span> <span class="vr">factor</span>   <span class="cm">// closes over factor</span>
+}
+
+<span class="kw">const</span> <span class="vr">double</span> <span class="op">=</span> <span class="fn">multiplier</span>(<span class="num">2</span>)
+<span class="kw">const</span> <span class="vr">triple</span> <span class="op">=</span> <span class="fn">multiplier</span>(<span class="num">3</span>)
+
+<span class="fn">double</span>(<span class="num">5</span>)  <span class="cm">// 10</span>
+<span class="fn">triple</span>(<span class="num">5</span>)  <span class="cm">// 15</span>`,
+
+        "loop-trap": `<span class="kw">for</span> (<span class="kw">var</span> <span class="vr">i</span> <span class="op">=</span> <span class="num">0</span>; <span class="vr">i</span> <span class="op">&lt;</span> <span class="num">3</span>; <span class="vr">i</span><span class="op">++</span>) {
+  <span class="fn">setTimeout</span>(() <span class="op">=></span> <span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">i</span>), <span class="num">100</span>)
+}
+<span class="cm">// prints: 3  3  3  ← not 0 1 2!</span>`,
+
+        "loop-fix-let": `<span class="kw">for</span> (<span class="kw">let</span> <span class="vr">i</span> <span class="op">=</span> <span class="num">0</span>; <span class="vr">i</span> <span class="op">&lt;</span> <span class="num">3</span>; <span class="vr">i</span><span class="op">++</span>) {
+  <span class="fn">setTimeout</span>(() <span class="op">=></span> <span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">i</span>), <span class="num">100</span>)
+}
+<span class="cm">// prints: 0  1  2  ✓</span>`,
+
+        "loop-fix-iife": `<span class="kw">for</span> (<span class="kw">var</span> <span class="vr">i</span> <span class="op">=</span> <span class="num">0</span>; <span class="vr">i</span> <span class="op">&lt;</span> <span class="num">3</span>; <span class="vr">i</span><span class="op">++</span>) {
+  ((<span class="vr">j</span>) <span class="op">=></span> <span class="fn">setTimeout</span>(() <span class="op">=></span> <span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">j</span>), <span class="num">100</span>))(<span class="vr">i</span>)
+}`,
+
+        "loop-fix-foreach": `[<span class="num">0</span>, <span class="num">1</span>, <span class="num">2</span>].<span class="fn">forEach</span>(<span class="vr">i</span> <span class="op">=></span> {
+  <span class="fn">setTimeout</span>(() <span class="op">=></span> <span class="fn">console</span>.<span class="fn">log</span>(<span class="vr">i</span>), <span class="num">100</span>)
+})`,
+
+        "rw-react": `<span class="kw">function</span> <span class="fn">Counter</span>() {
+  <span class="kw">const</span> [<span class="vr">count</span>, <span class="vr">setCount</span>] <span class="op">=</span> <span class="fn">useState</span>(<span class="num">0</span>)
+
+  <span class="kw">const</span> <span class="vr">handleClick</span> <span class="op">=</span> <span class="fn">useCallback</span>(() <span class="op">=></span> {
+    <span class="fn">setCount</span>(<span class="vr">count</span> <span class="op">+</span> <span class="num">1</span>)   <span class="cm">// closes over count</span>
+  }, [<span class="vr">count</span>])             <span class="cm">// dep keeps closure fresh</span>
+}`,
+
+        "rw-module": `<span class="cm">// a.js</span>
+<span class="kw">const</span> <span class="vr">_state</span> <span class="op">=</span> {}          <span class="cm">// private to module</span>
+<span class="kw">export function</span> <span class="fn">get</span>(<span class="vr">k</span>) { <span class="kw">return</span> <span class="vr">_state</span>[<span class="vr">k</span>] }`,
+
+        "rw-dom": `<span class="kw">const</span> <span class="vr">buttons</span> <span class="op">=</span> document.<span class="fn">querySelectorAll</span>(<span class="str">'button'</span>)
+
+<span class="kw">for</span> (<span class="kw">let</span> <span class="vr">i</span> <span class="op">=</span> <span class="num">0</span>; <span class="vr">i</span> <span class="op">&lt;</span> <span class="vr">buttons</span>.<span class="vr">length</span>; <span class="vr">i</span><span class="op">++</span>) {
+  <span class="vr">buttons</span>[<span class="vr">i</span>].<span class="fn">addEventListener</span>(<span class="str">'click'</span>, () <span class="op">=></span> {
+    <span class="fn">console</span>.<span class="fn">log</span>(<span class="str">'button'</span>, <span class="vr">i</span>)  <span class="cm">// ✓ correct i</span>
+  })
+}
+<span class="cm">// with var: all handlers log same i</span>`,
+
+        "rw-module-pattern": `<span class="kw">const</span> <span class="vr">store</span> <span class="op">=</span> (() <span class="op">=></span> {
+  <span class="kw">let</span> <span class="vr">_data</span> <span class="op">=</span> {}
+  <span class="kw">return</span> {
+    <span class="fn">set</span>: (<span class="vr">k</span>, <span class="vr">v</span>) <span class="op">=></span> { <span class="vr">_data</span>[<span class="vr">k</span>] <span class="op">=</span> <span class="vr">v</span> },
+    <span class="fn">get</span>: (<span class="vr">k</span>) <span class="op">=></span> <span class="vr">_data</span>[<span class="vr">k</span>]
+  }
+})()
+
+<span class="vr">store</span>.<span class="fn">set</span>(<span class="str">'user'</span>, <span class="str">'Alice'</span>)
+<span class="vr">store</span>.<span class="fn">get</span>(<span class="str">'user'</span>)  <span class="cm">// → "Alice"</span>
+<span class="vr">store</span>._data        <span class="cm">// → undefined</span>`,
+
+        "rw-memo": `<span class="kw">function</span> <span class="fn">memoize</span>(<span class="vr">fn</span>) {
+  <span class="kw">const</span> <span class="vr">cache</span> <span class="op">=</span> <span class="kw">new</span> <span class="fn">Map</span>()
+  <span class="kw">return</span> (<span class="vr">k</span>) <span class="op">=></span> {
+    <span class="kw">if</span> (!<span class="vr">cache</span>.<span class="fn">has</span>(<span class="vr">k</span>))
+      <span class="vr">cache</span>.<span class="fn">set</span>(<span class="vr">k</span>, <span class="fn">fn</span>(<span class="vr">k</span>))
+    <span class="kw">return</span> <span class="vr">cache</span>.<span class="fn">get</span>(<span class="vr">k</span>)
+  }
+}
+
+<span class="kw">const</span> <span class="vr">slow</span> <span class="op">=</span> <span class="fn">memoize</span>(<span class="vr">n</span> <span class="op">=></span> <span class="vr">n</span> <span class="op">*</span> <span class="vr">n</span>)
+<span class="fn">slow</span>(<span class="num">4</span>)  <span class="cm">// → 16  (computed)</span>
+<span class="fn">slow</span>(<span class="num">4</span>)  <span class="cm">// → 16  (cache hit)</span>`,
+
+        "rw-partial": `<span class="kw">const</span> <span class="fn">add</span> <span class="op">=</span> <span class="vr">a</span> <span class="op">=></span> <span class="vr">b</span> <span class="op">=></span> <span class="vr">a</span> <span class="op">+</span> <span class="vr">b</span>
+
+<span class="kw">const</span> <span class="vr">add5</span> <span class="op">=</span> <span class="fn">add</span>(<span class="num">5</span>)   <span class="cm">// closes over a=5</span>
+<span class="fn">add5</span>(<span class="num">3</span>)               <span class="cm">// 8</span>
+<span class="fn">add5</span>(<span class="num">10</span>)              <span class="cm">// 15</span>`,
+      };
+
+      document.querySelectorAll(".code[data-code]").forEach((el) => {
+        const id = el.dataset.code,
+          lang = el.dataset.lang || "js";
+        if (SNIPPETS[id])
+          el.innerHTML =
+            '<span class="lang">' + lang + "</span>" + SNIPPETS[id];
+      });
+
+      const astEl = document.getElementById("astTreeEl");
+      if (astEl && SNIPPETS["ast-tree"]) astEl.innerHTML = SNIPPETS["ast-tree"];
+
+      // ── Interactive EC Demo ────────────────────────────────────────────────
+      const EC_STEPS = [
+        {
+          phaseClass: "idle",
+          phaseText: "⚪ Idle",
+          hiLines: [],
+          captionClass: "idle",
+          caption:
+            '3 scopes — global, outer(), inner(). Watch 3 Execution Contexts come to life. Click "Next Step →" to begin.',
+          stack: [],
+          envLabel: "Variable Environment",
+          env: [],
+        },
+        {
+          phaseClass: "parse",
+          phaseText: "🔍 Parsing",
+          hiLines: [],
+          captionClass: "parse",
+          caption:
+            "🔍 V8 Parser builds an AST. It identifies 3 scope boundaries and locks in lexical relationships: inner() can see outer() scope, outer() can see global. Scope is decided HERE — before any execution.",
+          stack: [],
+          envLabel: "Variable Environment",
+          env: [],
+        },
+        {
+          phaseClass: "parse",
+          phaseText: "📦 Global EC Created",
+          hiLines: [],
+          captionClass: "parse",
+          caption:
+            "📦 Global Execution Context is created and pushed onto the Call Stack. This is the outermost container — window in browsers, global in Node.js.",
+          stack: [{ label: "Global EC", type: "fr-global", isNew: true }],
+          envLabel: "Global — Variable Environment",
+          env: [],
+        },
+        {
+          phaseClass: "memory",
+          phaseText: "🧠 Memory Phase",
+          hiLines: [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15],
+          captionClass: "memory",
+          caption:
+            "🧠 Global memory (creation) phase: var declarations hoisted → undefined. outer() function declaration fully hoisted with its body — including inner() inside it.",
+          stack: [{ label: "Global EC", type: "fr-global" }],
+          envLabel: "Global — Variable Environment",
+          env: [
+            { key: "app", val: "undefined", isNew: true },
+            { key: "outer", val: "fn() { … }", isNew: true, isFn: true },
+            { key: "result", val: "undefined", isNew: true },
+          ],
+        },
+        {
+          phaseClass: "exec",
+          phaseText: "▶ Executing",
+          hiLines: [1],
+          captionClass: "exec",
+          caption:
+            '▶ Line 1 executes: app = "QuestionPro". The assignment updates the Global environment from undefined → "QuestionPro".',
+          stack: [{ label: "Global EC", type: "fr-global" }],
+          envLabel: "Global — Variable Environment",
+          env: [
+            { key: "app", val: '"QuestionPro"', isUpdated: true },
+            { key: "outer", val: "fn() { … }", isFn: true },
+            { key: "result", val: "undefined" },
+          ],
+        },
+        {
+          phaseClass: "exec",
+          phaseText: "📞 outer() Called",
+          hiLines: [14],
+          captionClass: "exec",
+          caption:
+            '📞 Line 14: outer("dev") is invoked. V8 creates a new Function EC for outer() and pushes it to the Call Stack. Memory phase runs immediately.',
+          stack: [
+            { label: 'outer("dev")', type: "fr-fn", isNew: true },
+            { label: "Global EC", type: "fr-global" },
+          ],
+          envLabel: "Scope Chain — outer()",
+          sections: [
+            {
+              header: "📍 outer() — local scope",
+              rows: [
+                { key: "env", val: '"dev"', isNew: true, isParam: true },
+                { key: "mode", val: "undefined", isNew: true },
+                { key: "inner", val: "fn() { … }", isNew: true, isFn: true },
+              ],
+            },
+            {
+              header: "↑ global (outer ref)",
+              rows: [
+                { key: "app", val: '"QuestionPro"' },
+                { key: "result", val: "undefined" },
+              ],
+            },
+          ],
+        },
+        {
+          phaseClass: "exec",
+          phaseText: "▶ Inside outer()",
+          hiLines: [4],
+          captionClass: "exec",
+          caption:
+            '▶ Line 4: mode = env = "dev". outer()\'s own variable environment is updated. mode now holds "dev".',
+          stack: [
+            { label: 'outer("dev")', type: "fr-fn" },
+            { label: "Global EC", type: "fr-global" },
+          ],
+          envLabel: "Scope Chain — outer()",
+          sections: [
+            {
+              header: "📍 outer() — local scope",
+              rows: [
+                { key: "env", val: '"dev"', isParam: true },
+                { key: "mode", val: '"dev"', isUpdated: true },
+                { key: "inner", val: "fn() { … }", isFn: true },
+              ],
+            },
+            {
+              header: "↑ global (outer ref)",
+              rows: [
+                { key: "app", val: '"QuestionPro"' },
+                { key: "result", val: "undefined" },
+              ],
+            },
+          ],
+        },
+        {
+          phaseClass: "exec",
+          phaseText: "📞 inner() Called",
+          hiLines: [11],
+          captionClass: "exec",
+          caption:
+            "📞 Line 11: inner() is invoked. A THIRD EC is pushed! inner()'s memory phase: var msg hoisted to undefined. Scope chain: inner → outer → global.",
+          stack: [
+            { label: "inner()", type: "fr-inner", isNew: true },
+            { label: 'outer("dev")', type: "fr-fn" },
+            { label: "Global EC", type: "fr-global" },
+          ],
+          envLabel: "Scope Chain — inner()",
+          sections: [
+            {
+              header: "📍 inner() — local scope",
+              rows: [{ key: "msg", val: "undefined", isNew: true }],
+            },
+            {
+              header: "↑ outer() (outer ref)",
+              rows: [
+                { key: "mode", val: '"dev"' },
+                { key: "inner", val: "fn() { … }", isFn: true },
+              ],
+            },
+            {
+              header: "↑↑ global (outer ref)",
+              rows: [{ key: "app", val: '"QuestionPro"' }],
+            },
+          ],
+        },
+        {
+          phaseClass: "exec",
+          phaseText: "▶ Scope Chain Lookup",
+          hiLines: [7],
+          captionClass: "exec",
+          caption:
+            '▶ Line 7: msg = app + "/" + mode. "app" not in inner → looks up ↑ to outer — not there → looks up ↑↑ to global ✅. "mode" not in inner → found in outer ✅. Scope chain in action!',
+          stack: [
+            { label: "inner()", type: "fr-inner" },
+            { label: 'outer("dev")', type: "fr-fn" },
+            { label: "Global EC", type: "fr-global" },
+          ],
+          envLabel: "Scope Chain — inner()",
+          sections: [
+            {
+              header: "📍 inner() — local scope",
+              rows: [{ key: "msg", val: '"QuestionPro/dev"', isUpdated: true }],
+            },
+            {
+              header: "↑ outer() — mode found here ✅",
+              rows: [{ key: "mode", val: '"dev"', isRef: true }],
+            },
+            {
+              header: "↑↑ global — app found here ✅",
+              rows: [{ key: "app", val: '"QuestionPro"', isRef: true }],
+            },
+          ],
+        },
+        {
+          phaseClass: "exec",
+          phaseText: "↩ inner() Returned",
+          hiLines: [8, 11],
+          captionClass: "exec",
+          caption:
+            '↩ Line 8: return msg. inner()\'s EC is popped from the Call Stack and destroyed — its local scope is gone. "QuestionPro/dev" is passed back to outer().',
+          stack: [
+            { label: 'outer("dev")', type: "fr-fn" },
+            { label: "Global EC", type: "fr-global" },
+          ],
+          envLabel: "Scope Chain — outer()",
+          sections: [
+            {
+              header: "📍 outer() — local scope",
+              rows: [
+                { key: "env", val: '"dev"', isParam: true },
+                { key: "mode", val: '"dev"' },
+                { key: "inner", val: "fn() { … }", isFn: true },
+              ],
+            },
+            {
+              header: "↑ global (outer ref)",
+              rows: [
+                { key: "app", val: '"QuestionPro"' },
+                { key: "result", val: "undefined" },
+              ],
+            },
+          ],
+        },
+        {
+          phaseClass: "exec",
+          phaseText: "↩ outer() Returned",
+          hiLines: [11, 14],
+          captionClass: "exec",
+          caption:
+            "↩ outer() returns inner()'s result. outer()'s EC is popped. Both function ECs are destroyed. result = \"QuestionPro/dev\" is assigned back in Global EC.",
+          stack: [{ label: "Global EC", type: "fr-global" }],
+          envLabel: "Global — Variable Environment",
+          env: [
+            { key: "app", val: '"QuestionPro"' },
+            { key: "outer", val: "fn() { … }", isFn: true },
+            { key: "result", val: '"QuestionPro/dev"', isUpdated: true },
+          ],
+        },
+        {
+          phaseClass: "done",
+          phaseText: "✅ Done",
+          hiLines: [15],
+          captionClass: "done",
+          caption:
+            '✅ Line 15: console.log(result) → "QuestionPro/dev". All 3 execution contexts played their role. The call stack is back to just Global EC. Scope chain resolution worked perfectly.',
+          stack: [{ label: "Global EC", type: "fr-global" }],
+          envLabel: "Global — Variable Environment",
+          env: [
+            { key: "app", val: '"QuestionPro"' },
+            { key: "outer", val: "fn() { … }", isFn: true },
+            { key: "result", val: '"QuestionPro/dev"' },
+          ],
+        },
+      ];
+
+      let ecCur = 0;
+      const EC_TOTAL = EC_STEPS.length - 1;
+
+      function ecRender(idx) {
+        const s = EC_STEPS[idx];
+
+        const phEl = document.getElementById("ecd-phase");
+        phEl.className = "ecd-phase " + s.phaseClass;
+        phEl.style.cssText =
+          "margin-left:auto;font-size:12px;padding:3px 14px;font-weight:700";
+        phEl.textContent = s.phaseText;
+
+        document.querySelectorAll("#ecd-lines .ecd-line").forEach((el) => {
+          el.classList.toggle(
+            "hi",
+            s.hiLines.includes(parseInt(el.dataset.line, 10)),
+          );
+        });
+
+        const frEl = document.getElementById("ecd-frames");
+        frEl.innerHTML = "";
+        if (!s.stack.length) {
+          frEl.innerHTML =
+            '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:8px 0;font-style:italic">— empty —</div>';
+        } else {
+          s.stack.forEach((fr) => {
+            const d = document.createElement("div");
+            d.className =
+              "ecd-frame " + fr.type + (fr.isNew ? " ecd-frame-new" : "");
+            d.textContent = fr.label;
+            frEl.appendChild(d);
+          });
+        }
+
+        document.getElementById("ecd-env-lbl").textContent = s.envLabel;
+
+        const envEl = document.getElementById("ecd-env-body");
+        envEl.innerHTML = "";
+
+        function renderRow(row) {
+          const r = document.createElement("div");
+          r.className = "ecd-env-row" + (row.isNew ? " ecd-env-new" : "");
+          const c = row.isUpdated
+            ? "var(--green)"
+            : row.isRef
+              ? "#E07000"
+              : row.isFn
+                ? "var(--electric)"
+                : row.isParam
+                  ? "var(--orange)"
+                  : "var(--text-muted)";
+          const fw = row.isUpdated || row.isRef ? ";font-weight:700" : "";
+          r.innerHTML = `<span class="ecd-env-key">${row.key}</span><span class="ecd-env-sep">=</span><span class="ecd-env-val" style="color:${c}${fw}">${row.val}</span>`;
+          envEl.appendChild(r);
+        }
+
+        if (s.sections && s.sections.length) {
+          s.sections.forEach((sec) => {
+            const hdr = document.createElement("div");
+            hdr.className = "ecd-env-row scope-hdr";
+            hdr.textContent = sec.header;
+            envEl.appendChild(hdr);
+            sec.rows.forEach(renderRow);
+          });
+        } else if (s.env && s.env.length) {
+          s.env.forEach(renderRow);
+        } else {
+          envEl.innerHTML =
+            '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:10px;font-style:italic">— waiting —</div>';
+        }
+
+        const capEl = document.getElementById("ecd-caption");
+        capEl.className = "ecd-phase " + s.captionClass;
+        capEl.style.cssText =
+          "margin-top:8px;font-size:12.5px;padding:7px 12px;line-height:1.5;flex-shrink:0";
+        capEl.textContent = s.caption;
+
+        document.getElementById("ecd-lbl").textContent =
+          "Step " + idx + " / " + EC_TOTAL;
+        document.getElementById("ecd-prev").disabled = idx === 0;
+        document.getElementById("ecd-next").disabled = idx === EC_TOTAL;
+      }
+
+      function ecGo(dir) {
+        ecCur = Math.max(0, Math.min(EC_TOTAL, ecCur + dir));
+        ecRender(ecCur);
+      }
+
+      ecRender(0);
+    </script>
+  </body>
+</html>
